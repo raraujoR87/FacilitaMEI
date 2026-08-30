@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  assinaturaAtiva,
   diasDeTesteRestantes,
   estaEmTeste,
   limiteDeNotas,
@@ -79,4 +80,57 @@ test("perfil sem a coluna do teste não é rebaixado em silêncio", () => {
     console.error = original;
   }
   assert.equal(avisos.length, 1, "precisa avisar em desenvolvimento");
+});
+
+test("assinar durante o teste tira a conta do estado de teste", () => {
+  // Era o bug: a data do teste seguia no futuro, estaEmTeste continuava
+  // verdadeiro, e o assinante via "Pro por mais N dias". Da cadeira de
+  // quem operava, promover a conta parecia não surtir efeito.
+  const assinouNoTeste = {
+    plano: "pro",
+    plano_expira_em: emDias(30),
+    trial_expira_em: emDias(10),
+  };
+  assert.equal(planoEfetivo(assinouNoTeste), "pro");
+  assert.equal(assinaturaAtiva(assinouNoTeste), true);
+  assert.equal(estaEmTeste(assinouNoTeste), false, "pagante não está em teste");
+});
+
+test("Pro sem prazo, como o back-office libera, também tira do teste", () => {
+  const liberadoPeloAdmin = {
+    plano: "pro",
+    plano_expira_em: null,
+    trial_expira_em: emDias(10),
+  };
+  assert.equal(assinaturaAtiva(liberadoPeloAdmin), true);
+  assert.equal(estaEmTeste(liberadoPeloAdmin), false);
+  assert.equal(planoEfetivo(liberadoPeloAdmin), "pro");
+});
+
+test("assinatura vencida devolve a conta ao teste, se ele ainda vale", () => {
+  const perfil = {
+    plano: "pro",
+    plano_expira_em: emDias(-5),
+    trial_expira_em: emDias(4),
+  };
+  assert.equal(assinaturaAtiva(perfil), false);
+  assert.equal(estaEmTeste(perfil), true);
+  assert.equal(planoEfetivo(perfil), "pro", "o teste ainda sustenta o acesso");
+});
+
+test("conta grátis pura não tem assinatura nem teste", () => {
+  const perfil = { plano: "free", plano_expira_em: null, trial_expira_em: emDias(-1) };
+  assert.equal(assinaturaAtiva(perfil), false);
+  assert.equal(estaEmTeste(perfil), false);
+  assert.equal(planoEfetivo(perfil), "free");
+});
+
+test("a contagem do teste zera para quem já assinou", () => {
+  // Fecha a família de bugs por construção: qualquer tela que use a
+  // contagem crua passa a ficar correta sem precisar lembrar do estaEmTeste.
+  const assinante = { plano: "pro", plano_expira_em: emDias(30), trial_expira_em: emDias(9) };
+  assert.equal(diasDeTesteRestantes(assinante), 0);
+
+  const emTesteDeVerdade = { plano: "free", plano_expira_em: null, trial_expira_em: emDias(9) };
+  assert.equal(diasDeTesteRestantes(emTesteDeVerdade), 9);
 });

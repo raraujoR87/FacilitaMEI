@@ -7,6 +7,8 @@ export type Tenant = {
   nome_negocio: string;
   plano: "free" | "pro";
   plano_expira_em: string | null;
+  trial_expira_em: string | null;
+  plano_efetivo: "free" | "pro";
   limite_notas_mes: number;
   criado_em: string;
   ultimo_acesso: string | null;

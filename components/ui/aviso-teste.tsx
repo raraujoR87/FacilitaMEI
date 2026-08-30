@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
-import { diasDeTesteRestantes, type PerfilPlano } from "@/lib/planos";
+import { diasDeTesteRestantes, estaEmTeste, type PerfilPlano } from "@/lib/planos";
 
 /**
  * Contagem do período de teste.
@@ -10,8 +10,11 @@ import { diasDeTesteRestantes, type PerfilPlano } from "@/lib/planos";
  * teste chega como surpresa desagradável em vez de decisão de compra.
  */
 export function AvisoTeste({ perfil }: { perfil: PerfilPlano | null | undefined }) {
+  // `estaEmTeste` e não a contagem crua: quem assinou durante os 14 dias
+  // ainda tem data de teste no futuro, e via este aviso mesmo pagando.
+  if (!estaEmTeste(perfil)) return null;
+
   const dias = diasDeTesteRestantes(perfil);
-  if (dias === 0) return null;
 
   // Na última semana o tom muda: até então é informação, depois é decisão.
   const urgente = dias <= 7;

@@ -7,6 +7,7 @@ import {
 } from "@/lib/admin";
 import { formatarData, formatarDataDoMomento, formatarMoeda } from "@/lib/formato";
 import { situacaoTeto } from "@/lib/mei";
+import { diasDeTesteRestantes, estaEmTeste } from "@/lib/planos";
 import { Carimbo, Recibo, Vazio } from "@/components/ui/campos";
 import { AcoesTenant } from "./acoes-tenant";
 
@@ -17,7 +18,8 @@ export default async function AdminTenantsPage() {
   const tenants = (data ?? []) as Tenant[];
 
   const ativos = tenants.filter((t) => t.ultimo_lancamento !== null).length;
-  const pagantes = tenants.filter((t) => t.plano === "pro").length;
+  const pagantes = tenants.filter((t) => t.plano_efetivo === "pro" && !estaEmTeste(t)).length;
+  const emTeste = tenants.filter((t) => estaEmTeste(t)).length;
   const notasNoMes = tenants.reduce((s, t) => s + Number(t.notas_ia_no_mes), 0);
 
   return (
@@ -27,8 +29,9 @@ export default async function AdminTenantsPage() {
           Tenants
         </h1>
         <p className="text-sm" style={{ color: "var(--tinta-suave)" }}>
-          {tenants.length} conta(s) · {ativos} com movimento · {pagantes} no pro
-          · {notasNoMes} nota(s) lida(s) por IA neste mês
+          {tenants.length} conta(s) · {ativos} com movimento · {pagantes}{" "}
+          pagante(s) · {emTeste} em teste · {notasNoMes} nota(s) lida(s) por IA
+          neste mês
         </p>
       </div>
 
@@ -77,7 +80,15 @@ export default async function AdminTenantsPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   {t.bloqueado && <Carimbo status="bloqueado" />}
                   {!t.email_confirmado && <Carimbo status="pendente" />}
-                  <Carimbo status={t.plano} />
+                  {/* O que vale é o plano efetivo. Mostrar só a coluna
+                      `plano` escondia que o acesso vinha do teste, e uma
+                      promoção parecia não ter surtido efeito. */}
+                  <Carimbo status={t.plano_efetivo} />
+                  {estaEmTeste(t) && (
+                    <span className="text-xs" style={{ color: "var(--pendente)" }}>
+                      teste · {diasDeTesteRestantes(t)}d
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -122,8 +133,16 @@ export default async function AdminTenantsPage() {
                 </summary>
                 <AcoesTenant tenant={t} />
                 <p className="dica mt-2">
-                  Criada em {formatarMomento(t.criado_em)} · id {t.user_id}
+                  Criada em {formatarMomento(t.criado_em)}
+                  {t.trial_expira_em &&
+                    ` · teste até ${formatarMomento(t.trial_expira_em)}`}
+                  {t.plano_expira_em
+                    ? ` · Pro até ${formatarMomento(t.plano_expira_em)}`
+                    : t.plano === "pro"
+                    ? " · Pro sem prazo"
+                    : ""}
                 </p>
+                <p className="dica">id {t.user_id}</p>
               </details>
             </section>
           ))}

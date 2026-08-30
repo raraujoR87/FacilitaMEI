@@ -131,17 +131,45 @@ export type PerfilPlano = {
   limite_notas_mes?: number | null;
 };
 
-/** Dias que faltam do teste. Zero quando não há teste ativo. */
+/**
+ * Assinatura paga em vigor. Sem data de validade significa Pro sem prazo,
+ * que é como o back-office libera uma conta manualmente.
+ */
+export function assinaturaAtiva(perfil: PerfilPlano | null | undefined): boolean {
+  if (!perfil || perfil.plano !== "pro") return false;
+  if (!perfil.plano_expira_em) return true;
+  return new Date(perfil.plano_expira_em) > new Date();
+}
+
+/**
+ * Dias restantes do teste — zero para quem já assinou.
+ *
+ * A subtração de datas devolvia dias para o assinante também, porque a data
+ * do teste continua no futuro depois da compra. Isso já causou dois bugs:
+ * um aviso de teste na tela de quem paga, e o back-office parecendo não
+ * surtir efeito ao promover a conta. Descontar a assinatura aqui, e não em
+ * cada chamador, fecha a família inteira de uma vez.
+ */
 export function diasDeTesteRestantes(
   perfil: PerfilPlano | null | undefined
 ): number {
   if (!perfil?.trial_expira_em) return 0;
+  if (assinaturaAtiva(perfil)) return 0;
+
   const restam = new Date(perfil.trial_expira_em).getTime() - Date.now();
   return restam > 0 ? Math.ceil(restam / 86_400_000) : 0;
 }
 
-/** Se o Pro vem do teste e não de assinatura paga. */
+/**
+ * Se o Pro vem do teste — e não de assinatura paga.
+ *
+ * A precedência importa: quem assinou durante os 14 dias continuava vendo
+ * "você está no Pro por mais N dias" e "Pro (teste)", porque a data do
+ * teste seguia no futuro. Da cadeira de quem operava, promover a conta
+ * parecia não surtir efeito nenhum.
+ */
 export function estaEmTeste(perfil: PerfilPlano | null | undefined): boolean {
+  if (assinaturaAtiva(perfil)) return false;
   return diasDeTesteRestantes(perfil) > 0;
 }
 
@@ -166,10 +194,11 @@ export function planoEfetivo(perfil: PerfilPlano | null | undefined): IdPlano {
   }
 
   // Espelha `plano_efetivo()` no banco, teste incluído.
-  if (estaEmTeste(perfil)) return "pro";
-  if (perfil.plano !== "pro") return "free";
-  if (!perfil.plano_expira_em) return "pro";
-  return new Date(perfil.plano_expira_em) > new Date() ? "pro" : "free";
+  // Pro por assinatura OU por teste; a origem muda o que a tela diz, não o
+  // acesso.
+  return assinaturaAtiva(perfil) || diasDeTesteRestantes(perfil) > 0
+    ? "pro"
+    : "free";
 }
 
 /** Quantas notas por foto a conta pode ler no mês. */
