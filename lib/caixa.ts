@@ -12,8 +12,27 @@ import { diasParaDAS } from "./mei.ts";
  * aperto e errar para mais custa uma multa.
  */
 
-export const CATEGORIA_DAS = "DAS (imposto do MEI)";
-export const CATEGORIA_RETIRADA = "Retirada do dono";
+/**
+ * Reparte as saídas do mês pela natureza.
+ *
+ * Existia como comparação de nome de categoria dentro da página. Além de
+ * frágil (categoria é rótulo editável), era regra de negócio morando na
+ * camada de tela — o mesmo cálculo teria que ser repetido no relatório.
+ */
+export function repartirSaidas(
+  linhas: { tipo: string; natureza_saida: string | null; valor: number }[]
+): { custos: number; retiradas: number; impostos: number } {
+  const somar = (natureza: string) =>
+    linhas
+      .filter((l) => l.tipo === "despesa" && l.natureza_saida === natureza)
+      .reduce((soma, l) => soma + Number(l.valor), 0);
+
+  return {
+    custos: somar("custo"),
+    retiradas: somar("retirada"),
+    impostos: somar("imposto"),
+  };
+}
 
 export type SituacaoDoCaixa = {
   entradas: number;
@@ -36,6 +55,7 @@ export function situacaoDoCaixa({
   dasPago,
 }: {
   entradas: number;
+  /** Custo do negócio + imposto já pago. Retirada NÃO entra aqui. */
   saidasOperacionais: number;
   retiradas: number;
   valorDas: number | null;

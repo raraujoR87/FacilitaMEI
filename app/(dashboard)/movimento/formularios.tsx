@@ -11,6 +11,7 @@ import { CampoValor } from "@/components/ui/campo-valor";
 import { ItensDocumento } from "@/components/ui/itens-documento";
 import { hoje } from "@/lib/formato";
 import { situacaoFiscal } from "@/lib/fiscal";
+import { NATUREZAS_SAIDA, SAIDA, type NaturezaSaida } from "@/lib/lancamentos";
 
 export type ClienteOpcao = { id: string; nome: string; documento: string | null };
 export type Categoria = { id: string; nome: string; tipo: string };
@@ -27,12 +28,23 @@ export function Formularios({
   clientes,
   categoriasDespesa,
   trabalhos,
+  naturezaInicial,
+  valorDasPadrao,
 }: {
   clientes: ClienteOpcao[];
   categoriasDespesa: Categoria[];
   trabalhos: TrabalhoOpcao[];
+  /**
+   * Vem de `/movimento?lancar=`. A tela inicial não escreve mais: ela
+   * manda para cá com a saída certa já escolhida, o que preserva o "um
+   * toque" da baixa do DAS sem duplicar o formulário.
+   */
+  naturezaInicial: NaturezaSaida | null;
+  valorDasPadrao: number | null;
 }) {
-  const [aba, setAba] = useState<"entrada" | "saida">("entrada");
+  const [aba, setAba] = useState<"entrada" | "saida">(
+    naturezaInicial ? "saida" : "entrada"
+  );
 
   return (
     <section className="fita-recibo px-5 md:px-6 py-6 mb-6">
@@ -64,7 +76,12 @@ export function Formularios({
       {aba === "entrada" ? (
         <FormularioEntrada clientes={clientes} />
       ) : (
-        <FormularioSaida categorias={categoriasDespesa} trabalhos={trabalhos} />
+        <FormularioSaida
+          categorias={categoriasDespesa}
+          trabalhos={trabalhos}
+          naturezaInicial={naturezaInicial ?? "custo"}
+          valorDasPadrao={valorDasPadrao}
+        />
       )}
     </section>
   );
@@ -241,33 +258,85 @@ function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
 function FormularioSaida({
   categorias,
   trabalhos,
+  naturezaInicial,
+  valorDasPadrao,
 }: {
   categorias: Categoria[];
   trabalhos: TrabalhoOpcao[];
+  naturezaInicial: NaturezaSaida;
+  valorDasPadrao: number | null;
 }) {
   const [estado, acao] = useActionState(criarLancamento, ESTADO_INICIAL);
+  const [natureza, setNatureza] = useState<NaturezaSaida>(naturezaInicial);
+
+  const ehCusto = natureza === "custo";
+  const ehImposto = natureza === "imposto";
 
   return (
-    <form key={estado.sucesso ?? "nova"} action={acao} className="flex flex-col gap-4">
+    <form
+      key={`${estado.sucesso ?? "nova"}-${natureza}`}
+      action={acao}
+      className="flex flex-col gap-4"
+    >
+      {/* As três naturezas de saída no mesmo lugar. Antes, retirada e DAS
+          moravam na tela inicial: quem aprendeu "saiu dinheiro, vou em
+          Movimento" não achava a retirada. */}
       <div>
-        <label className="rotulo" htmlFor="descricao">
-          O que você pagou?
-        </label>
-        <input
-          id="descricao"
-          name="descricao"
-          required
-          autoComplete="off"
-          placeholder="Ex: tinta e pincel"
-          className="campo"
-        />
+        <p className="rotulo">Que tipo de saída?</p>
+        <div className="flex flex-wrap gap-2">
+          {NATUREZAS_SAIDA.map((id) => (
+            <label
+              key={id}
+              className="flex-1 min-w-[8rem] text-center text-sm py-2 rounded-md border cursor-pointer"
+              style={{
+                borderColor: natureza === id ? "var(--selo)" : "var(--borda)",
+                background: natureza === id ? "rgba(194,59,34,0.07)" : "transparent",
+                fontWeight: natureza === id ? 600 : 400,
+              }}
+            >
+              <input
+                type="radio"
+                name="natureza_saida"
+                value={id}
+                checked={natureza === id}
+                onChange={() => setNatureza(id)}
+                className="sr-only"
+              />
+              {SAIDA[id].rotulo}
+            </label>
+          ))}
+        </div>
+        <p className="dica">{SAIDA[natureza].ajuda}</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <CampoValor />
+      {/* DAS não pede descrição: ela é sempre "DAS de MM/AAAA", e digitar
+          isso todo mês é atrito num registro que deveria ser de um toque. */}
+      {!ehImposto && (
+        <div>
+          <label className="rotulo" htmlFor="descricao">
+            {ehCusto ? "O que você pagou?" : "Para quê?"}
+            {!ehCusto && <span className="dica"> (opcional)</span>}
+          </label>
+          <input
+            id="descricao"
+            name="descricao"
+            required={ehCusto}
+            autoComplete="off"
+            placeholder={ehCusto ? "Ex: tinta e pincel" : "Ex: pró-labore de agosto"}
+            className="campo"
+          />
+        </div>
+      )}
+
+      <div className={`grid gap-4 ${ehCusto ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+        <CampoValor
+          centavosIniciais={
+            ehImposto && valorDasPadrao ? Math.round(valorDasPadrao * 100) : 0
+          }
+        />
         <div>
           <label className="rotulo" htmlFor="data_competencia">
-            Data
+            {ehImposto ? "Competência" : "Data"}
           </label>
           <input
             id="data_competencia"
@@ -276,57 +345,81 @@ function FormularioSaida({
             defaultValue={hoje()}
             className="campo"
           />
-        </div>
-        <div>
-          <label className="rotulo" htmlFor="categoria_id">
-            Categoria
-          </label>
-          <select id="categoria_id" name="categoria_id" className="campo">
-            <option value="">Sem categoria</option>
-            {categorias.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="rotulo" htmlFor="fornecedor_cliente">
-            Fornecedor
-            <span className="dica"> (opcional)</span>
-          </label>
-          <input id="fornecedor_cliente" name="fornecedor_cliente" autoComplete="off" className="campo" />
+          {ehImposto && (
+            <p className="dica">
+              O mês a que o DAS se refere. Pagando um atrasado, use o mês
+              antigo — é assim que o contador espera ver.
+            </p>
+          )}
         </div>
 
-        {/* A pergunta que separa faturamento de lucro. Fica opcional de
-            propósito: gasto de estrutura (aluguel, internet) não é de
-            trabalho nenhum, e obrigar a escolher faria a pessoa chutar. */}
-        {trabalhos.length > 0 && (
+        {/* Categoria só faz sentido no custo: retirada e DAS têm a sua
+            fixa, e deixar escolher permitiria um DAS em "Alimentação". */}
+        {ehCusto && (
           <div>
-            <label className="rotulo" htmlFor="custo_de_documento_id">
-              Foi custo de qual trabalho?
-              <span className="dica"> (opcional)</span>
+            <label className="rotulo" htmlFor="categoria_id">
+              Categoria
             </label>
-            <select id="custo_de_documento_id" name="custo_de_documento_id" className="campo">
-              <option value="">Gasto geral do negócio</option>
-              {trabalhos.map((t) => (
-                <option key={t.id} value={t.id}>
-                  #{t.numero} · {t.descricao_servico}
+            <select id="categoria_id" name="categoria_id" className="campo">
+              <option value="">Sem categoria</option>
+              {categorias.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
                 </option>
               ))}
             </select>
-            <p className="dica">Vinculando, o recibo mostra quanto sobrou.</p>
           </div>
         )}
       </div>
 
+      {ehCusto && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="rotulo" htmlFor="fornecedor_cliente">
+              Fornecedor
+              <span className="dica"> (opcional)</span>
+            </label>
+            <input
+              id="fornecedor_cliente"
+              name="fornecedor_cliente"
+              autoComplete="off"
+              className="campo"
+            />
+          </div>
+
+          {/* A pergunta que separa faturamento de lucro. Fica opcional de
+              propósito: gasto de estrutura (aluguel, internet) não é de
+              trabalho nenhum, e obrigar a escolher faria a pessoa chutar. */}
+          {trabalhos.length > 0 && (
+            <div>
+              <label className="rotulo" htmlFor="custo_de_documento_id">
+                Foi custo de qual trabalho?
+                <span className="dica"> (opcional)</span>
+              </label>
+              <select
+                id="custo_de_documento_id"
+                name="custo_de_documento_id"
+                className="campo"
+              >
+                <option value="">Gasto geral do negócio</option>
+                {trabalhos.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    #{t.numero} · {t.descricao_servico}
+                  </option>
+                ))}
+              </select>
+              <p className="dica">Vinculando, o recibo mostra quanto sobrou.</p>
+            </div>
+          )}
+        </div>
+      )}
+
       <Aviso estado={estado} />
 
       <div className="flex justify-end">
-        <BotaoSubmit carregando="Lançando...">Lançar saída</BotaoSubmit>
+        <BotaoSubmit carregando="Lançando...">
+          {ehImposto ? "Dar baixa no DAS" : "Lançar saída"}
+        </BotaoSubmit>
       </div>
     </form>
   );

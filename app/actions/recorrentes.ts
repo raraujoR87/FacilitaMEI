@@ -103,6 +103,9 @@ export async function lancarDespesaFixa(
   const { error } = await supabase.from("lancamentos").insert({
     user_id: user.id,
     tipo: "despesa",
+    // Conta fixa é sempre custo do negócio — aluguel e internet não são
+    // retirada nem imposto.
+    natureza_saida: "custo",
     descricao: fixa.descricao,
     valor,
     data_competencia: lerTexto(formData, "data_competencia") || hoje(),

@@ -18,6 +18,7 @@ import { Formularios } from "./formularios";
 import { EditarSaida } from "./editar-saida";
 import { ContasFixas } from "./contas-fixas";
 import type { ContaFixa } from "@/lib/recorrentes";
+import { ehNaturezaSaida, type NaturezaSaida } from "@/lib/lancamentos";
 
 type Um<T> = T | T[] | null;
 function um<T>(v: Um<T>): T | null {
@@ -61,7 +62,7 @@ type Trabalho = { id: string; numero: number; descricao_servico: string };
 export default async function MovimentoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string; filtro?: string }>;
+  searchParams: Promise<{ mes?: string; filtro?: string; lancar?: string }>;
 }) {
   const { supabase, user } = await exigirUsuario();
   const params = await searchParams;
@@ -70,12 +71,19 @@ export default async function MovimentoPage({
     (FILTROS.find((f) => f.id === params.filtro)?.id as Filtro) ?? "tudo";
   const { inicio, fim } = intervaloDoMes(mes);
 
+  // A tela inicial não escreve mais: ela manda para cá já com a saída
+  // certa escolhida. Preserva o "um toque" da baixa do DAS sem manter
+  // dois formulários para o mesmo registro.
+  const naturezaInicial: NaturezaSaida | null =
+    params.lancar && ehNaturezaSaida(params.lancar) ? params.lancar : null;
+
   const [
     { data: lancamentos },
     { data: clientes },
     { data: categorias },
     { data: trabalhos },
     { data: fixas },
+    { data: perfil },
   ] = await Promise.all([
     supabase
       .from("lancamentos")
@@ -111,6 +119,7 @@ export default async function MovimentoPage({
       .order("data_emissao", { ascending: false })
       .limit(40),
     supabase.rpc("contas_fixas_do_mes", { mes: inicio }),
+    supabase.from("perfis").select("valor_das").eq("id", user.id).single(),
   ]);
 
   const todos = (lancamentos ?? []) as Linha[];
@@ -174,6 +183,8 @@ export default async function MovimentoPage({
         clientes={clientes ?? []}
         categoriasDespesa={categorias ?? []}
         trabalhos={listaTrabalhos}
+        naturezaInicial={naturezaInicial}
+        valorDasPadrao={perfil?.valor_das ?? null}
       />
 
       <ContasFixas

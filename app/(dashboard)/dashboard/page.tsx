@@ -13,7 +13,7 @@ import {
 import { Recibo, Vazio } from "@/components/ui/campos";
 import { PainelTeto } from "@/components/ui/painel-teto";
 import { PainelCaixa } from "@/components/ui/painel-caixa";
-import { avisoDas, CATEGORIA_DAS, CATEGORIA_RETIRADA, situacaoDoCaixa } from "@/lib/caixa";
+import { avisoDas, repartirSaidas, situacaoDoCaixa } from "@/lib/caixa";
 import { situacaoTeto, tetoAplicavel, tetoDoAno } from "@/lib/mei";
 import { resumirFixas, type ContaFixa } from "@/lib/recorrentes";
 
@@ -54,14 +54,18 @@ export default async function DashboardPage() {
       .single(),
   ]);
 
-  // O mês separado por natureza: custo do negócio, retirada do dono e
-  // imposto são coisas diferentes, e somá-las esconde a resposta.
   const { data: fixas } = await supabase.rpc("contas_fixas_do_mes", { mes: inicio });
   const fixasALancar = resumirFixas((fixas ?? []) as ContaFixa[]).aLancar;
 
+  // O mês separado por natureza: custo do negócio, retirada do dono e
+  // imposto são coisas diferentes, e somá-las esconde a resposta.
+  //
+  // A separação vem da coluna `natureza_saida`, não do nome da categoria.
+  // Enquanto vinha do nome, renomear "Retirada do dono" para "Pró-labore"
+  // quebrava esta conta em silêncio.
   const { data: doMes } = await supabase
     .from("lancamentos")
-    .select("valor, tipo, categorias(nome)")
+    .select("valor, tipo, natureza_saida")
     .eq("user_id", user.id)
     .gte("data_competencia", inicio)
     .lte("data_competencia", fim);
@@ -69,31 +73,18 @@ export default async function DashboardPage() {
   const linhas = (doMes ?? []) as {
     valor: number;
     tipo: string;
-    categorias: { nome: string } | { nome: string }[] | null;
+    natureza_saida: string | null;
   }[];
 
-  const nomeCategoria = (c: (typeof linhas)[number]["categorias"]) =>
-    (Array.isArray(c) ? c[0] : c)?.nome ?? "";
+  const { custos, retiradas, impostos } = repartirSaidas(linhas);
+  const dasPagoNoMes = impostos > 0;
 
-  const somaSe = (filtro: (l: (typeof linhas)[number]) => boolean) =>
-    linhas.filter(filtro).reduce((s, l) => s + Number(l.valor), 0);
-
-  const retiradas = somaSe(
-    (l) => l.tipo === "despesa" && nomeCategoria(l.categorias) === CATEGORIA_RETIRADA
-  );
-  const dasPagoNoMes = linhas.some(
-    (l) => l.tipo === "despesa" && nomeCategoria(l.categorias) === CATEGORIA_DAS
-  );
-  // Só a retirada sai dos custos — ela é destino do lucro, não gasto do
-  // negócio. O DAS entra: enquanto não é pago ele aparece como reserva e
-  // não existe lançamento; pago, vira custo e a reserva zera. Excluí-lo
-  // aqui fazia o disponível SUBIR ao pagar o imposto.
-  const custos = somaSe(
-    (l) => l.tipo === "despesa" && nomeCategoria(l.categorias) !== CATEGORIA_RETIRADA
-  );
+  const entradasDoMes = linhas
+    .filter((l) => l.tipo === "receita")
+    .reduce((soma, l) => soma + Number(l.valor), 0);
 
   const caixa = situacaoDoCaixa({
-    entradas: somaSe((l) => l.tipo === "receita"),
+    entradas: entradasDoMes,
     saidasOperacionais: custos,
     retiradas,
     valorDas: perfil?.valor_das ?? null,
@@ -147,7 +138,6 @@ export default async function DashboardPage() {
       <PainelCaixa
         caixa={caixa}
         das={avisoDas(hoje(), dasPagoNoMes)}
-        valorDas={perfil?.valor_das ?? null}
         fixasALancar={fixasALancar}
       />
 

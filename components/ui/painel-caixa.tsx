@@ -1,13 +1,5 @@
-"use client";
-
-import { useActionState, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, HandCoins, Wallet } from "lucide-react";
-import { pagarDas, registrarRetirada } from "@/app/actions/caixa";
-import { ESTADO_INICIAL } from "@/app/actions/tipos";
-import { Aviso } from "@/components/ui/campos";
-import { BotaoSubmit } from "@/components/ui/botao-submit";
-import { CampoValor } from "@/components/ui/campo-valor";
 import { formatarMoeda } from "@/lib/formato";
 import type { AvisoDas, SituacaoDoCaixa } from "@/lib/caixa";
 
@@ -17,23 +9,24 @@ import type { AvisoDas, SituacaoDoCaixa } from "@/lib/caixa";
  * É a pergunta que faz o MEI misturar a conta pessoal com a do negócio: ele
  * olha o saldo do banco, não sabe quanto já tem dono, e tira no escuro.
  * Fica no topo do dashboard porque é o motivo de abrir o app.
+ *
+ * O painel só LÊ. Ele já teve dois formulários dentro — registrar retirada
+ * e dar baixa no DAS —, o que criava duas casas para o mesmo conceito:
+ * quem aprendeu "saiu dinheiro, vou em Movimento" não achava a retirada, e
+ * as duas telas tinham regras diferentes para o mesmo registro (a retirada
+ * daqui, por exemplo, só aceitava a data de hoje). Agora a tela inicial
+ * responde "como estou?" e leva para onde se registra.
  */
 export function PainelCaixa({
   caixa,
   das,
-  valorDas,
   fixasALancar,
 }: {
   caixa: SituacaoDoCaixa;
   das: AvisoDas;
-  valorDas: number | null;
   /** Contas fixas do mês ainda não lançadas. */
   fixasALancar: number;
 }) {
-  const [estadoRetirada, acaoRetirada] = useActionState(registrarRetirada, ESTADO_INICIAL);
-  const [estadoDas, acaoDas] = useActionState(pagarDas, ESTADO_INICIAL);
-  const [abrindoRetirada, setAbrindoRetirada] = useState(false);
-
   const negativo = caixa.disponivel < 0;
   const cor = negativo ? "var(--selo)" : "var(--positivo)";
 
@@ -80,83 +73,42 @@ export function PainelCaixa({
           cor="var(--selo)"
         />
         <Linha rotulo="Você já tirou" valor={-caixa.retiradas} cor="var(--tinta-suave)" />
-        <Linha
-          rotulo="Imposto reservado"
-          valor={-caixa.reservaDas}
-          cor="var(--pendente)"
-        />
+        <Linha rotulo="Imposto reservado" valor={-caixa.reservaDas} cor="var(--pendente)" />
       </dl>
 
-      <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-2" style={{ borderColor: "var(--borda)" }}>
-        {!abrindoRetirada ? (
-          <button
-            type="button"
-            onClick={() => setAbrindoRetirada(true)}
-            className="botao botao-secundario"
-          >
-            <HandCoins size={15} aria-hidden />
-            Registrar retirada
-          </button>
-        ) : (
-          <form action={acaoRetirada} className="flex flex-wrap items-end gap-2 w-full">
-            <CampoValor label="Quanto você tirou" />
-            <div className="flex-1 min-w-[10rem]">
-              <label className="rotulo" htmlFor="descricao-retirada">
-                Para quê
-                <span className="dica"> (opcional)</span>
-              </label>
-              <input
-                id="descricao-retirada"
-                name="descricao"
-                placeholder="Ex: pró-labore de agosto"
-                autoComplete="off"
-                className="campo"
-              />
-            </div>
-            <BotaoSubmit>Registrar</BotaoSubmit>
-            <button
-              type="button"
-              onClick={() => setAbrindoRetirada(false)}
-              className="botao botao-secundario"
-            >
-              Cancelar
-            </button>
-            <div className="w-full">
-              <Aviso estado={estadoRetirada} />
-            </div>
-          </form>
-        )}
+      <div
+        className="mt-4 pt-4 border-t flex flex-wrap items-center gap-3"
+        style={{ borderColor: "var(--borda)" }}
+      >
+        <Link href="/movimento?lancar=retirada" className="botao botao-secundario">
+          <HandCoins size={15} aria-hidden />
+          Registrar retirada
+        </Link>
 
         {!caixa.dasInformado ? (
           <Link href="/configuracoes" className="botao botao-discreto px-0">
             Informar o valor do DAS
           </Link>
         ) : das.pago ? (
-          <span className="text-sm flex items-center gap-1.5" style={{ color: "var(--positivo)" }}>
+          <span
+            className="text-sm flex items-center gap-1.5"
+            style={{ color: "var(--positivo)" }}
+          >
             <CalendarClock size={15} aria-hidden />
             DAS do mês pago
           </span>
         ) : (
-          <form action={acaoDas} className="flex items-center gap-2">
-            <input type="hidden" name="valor" value={String(valorDas ?? 0)} />
-            <span
-              className="text-sm flex items-center gap-1.5"
-              style={{ color: das.urgente ? "var(--selo)" : "var(--tinta-suave)" }}
-            >
-              <CalendarClock size={15} aria-hidden />
-              {das.dias === 0
-                ? "DAS vence hoje"
-                : `DAS vence em ${das.dias} dia${das.dias > 1 ? "s" : ""}`}
-            </span>
-            <BotaoSubmit variante="discreto" carregando="...">
-              Já paguei
-            </BotaoSubmit>
-          </form>
+          <Link
+            href="/movimento?lancar=imposto"
+            className="text-sm flex items-center gap-1.5 underline"
+            style={{ color: das.urgente ? "var(--selo)" : "var(--tinta-suave)" }}
+          >
+            <CalendarClock size={15} aria-hidden />
+            {das.dias === 0
+              ? "DAS vence hoje — dar baixa"
+              : `DAS vence em ${das.dias} dia${das.dias > 1 ? "s" : ""} — dar baixa`}
+          </Link>
         )}
-      </div>
-
-      <div className="mt-1">
-        <Aviso estado={estadoDas} />
       </div>
     </section>
   );
