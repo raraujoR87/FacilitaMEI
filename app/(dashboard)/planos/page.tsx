@@ -4,6 +4,8 @@ import { formatarMoeda, intervaloDoMes, mesAtual, rotuloMes } from "@/lib/format
 import {
   contatoWhatsApp,
   economiaAnual,
+  diasDeTesteRestantes,
+  estaEmTeste,
   limiteDeNotas,
   linkAssinatura,
   planoEfetivo,
@@ -17,7 +19,11 @@ export default async function PlanosPage() {
   const { inicio } = intervaloDoMes(mes);
 
   const [{ data: perfil }, { count }] = await Promise.all([
-    supabase.from("perfis").select("plano, plano_expira_em, limite_notas_mes").eq("id", user.id).single(),
+    supabase
+      .from("perfis")
+      .select("plano, plano_expira_em, trial_expira_em, limite_notas_mes")
+      .eq("id", user.id)
+      .single(),
     supabase
       .from("lancamentos")
       .select("id", { count: "exact", head: true })
@@ -48,6 +54,19 @@ export default async function PlanosPage() {
         Você está no plano{" "}
         <strong style={{ color: "var(--tinta)" }}>{PLANOS[planoAtual].nome}</strong>.
       </p>
+
+      {estaEmTeste(perfil) && (
+        <div className="aviso mb-6" style={{ borderColor: "var(--positivo)", background: "rgba(47,110,91,0.08)" }}>
+          <p>
+            <strong>
+              Você está testando o Pro — faltam {diasDeTesteRestantes(perfil)} dias.
+            </strong>{" "}
+            Depois disso a conta continua funcionando no plano grátis, sem
+            perder nada do que você já registrou. O que muda são os recursos
+            listados abaixo.
+          </p>
+        </div>
+      )}
 
       {venceu && (
         <p className="aviso aviso-erro mb-6">

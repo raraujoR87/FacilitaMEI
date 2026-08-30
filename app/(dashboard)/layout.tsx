@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { sair } from "@/app/actions/sessao";
 import { NavegacaoInferior, NavegacaoLateral } from "@/components/ui/navegacao";
 import { Marca } from "@/components/ui/marca";
+import { AvisoTeste } from "@/components/ui/aviso-teste";
+import { estaEmTeste, planoEfetivo } from "@/lib/planos";
 
 export default async function DashboardLayout({
   children,
@@ -16,7 +18,11 @@ export default async function DashboardLayout({
 
   const [{ data: perfil }, { data: ehAdministrador }] = await Promise.all([
     user
-      ? supabase.from("perfis").select("nome_negocio, plano").eq("id", user.id).single()
+      ? supabase
+          .from("perfis")
+          .select("nome_negocio, plano, plano_expira_em, trial_expira_em")
+          .eq("id", user.id)
+          .single()
       : Promise.resolve({ data: null }),
     // O link para a operação só existe para quem opera. Não é a proteção da
     // rota — essa está no banco —, é só não poluir a tela de quem não usa.
@@ -52,7 +58,9 @@ export default async function DashboardLayout({
             className="text-xs underline"
             style={{ color: "var(--tinta-suave)" }}
           >
-            Plano {perfil?.plano === "pro" ? "Pro" : "grátis"}
+            {estaEmTeste(perfil)
+              ? "Pro (teste)"
+              : `Plano ${planoEfetivo(perfil) === "pro" ? "Pro" : "grátis"}`}
           </Link>
           <form action={sair} className="mt-2">
             <button type="submit" className="botao botao-discreto px-0">
@@ -63,6 +71,8 @@ export default async function DashboardLayout({
       </aside>
 
       <div className="flex-1 min-w-0">
+        <AvisoTeste perfil={perfil} />
+
         {/* Cabeçalho compacto do celular, já que a lateral não existe lá. */}
         <header
           className="md:hidden flex items-center justify-between px-5 py-3 border-b nao-imprimir"

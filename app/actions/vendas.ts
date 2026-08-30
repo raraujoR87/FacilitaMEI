@@ -8,6 +8,7 @@ import {
   lerOpcional,
   lerTexto,
   lerValor,
+  mensagemDeLimite,
 } from "@/app/actions/tipos";
 
 type ItemEntrada = {
@@ -134,7 +135,11 @@ export async function criarDocumento(
       // Documento sem os itens que o justificam é pior que documento
       // nenhum: o cliente receberia um recibo sem o detalhe combinado.
       await supabase.from("documentos_venda").delete().eq("id", documento.id);
-      return { erro: "Não foi possível salvar os itens. Nada foi emitido." };
+      return {
+        erro:
+          mensagemDeLimite(erroItens.message) ??
+          "Não foi possível salvar os itens. Nada foi emitido.",
+      };
     }
   }
 

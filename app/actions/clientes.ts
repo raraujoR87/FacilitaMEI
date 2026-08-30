@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { exigirUsuario } from "@/lib/auth";
-import { type EstadoForm, lerOpcional, lerTexto } from "@/app/actions/tipos";
+import {
+  type EstadoForm,
+  lerOpcional,
+  lerTexto,
+  mensagemDeLimite,
+} from "@/app/actions/tipos";
 import { apenasDigitos, documentoValido } from "@/lib/fiscal";
 
 export async function criarCliente(
@@ -30,7 +35,9 @@ export async function criarCliente(
     observacoes: lerOpcional(formData, "observacoes"),
   });
 
-  if (error) return { erro: "Não foi possível salvar o cliente." };
+  if (error) {
+    return { erro: mensagemDeLimite(error.message) ?? "Não foi possível salvar o cliente." };
+  }
 
   revalidatePath("/clientes");
   revalidatePath("/movimento");

@@ -16,6 +16,24 @@ export const LIMITE_NOTAS_FREE = 10;
  */
 export const LIMITE_NOTAS_PRO = 300;
 
+/** Dias de Pro dados no cadastro. */
+export const DIAS_DE_TESTE = 14;
+
+/**
+ * Limites de escala do plano grátis.
+ *
+ * Limitam por tamanho, não por função: quem cresceu esbarra, quem está
+ * começando não sente. O concorrente aqui é o caderno e o WhatsApp — grátis
+ * capado demais faz voltar para o papel, e aí não há o que converter.
+ *
+ * Editar registro fica de fora de propósito: erro de digitação que não dá
+ * para corrigir gera raiva, e atinge justamente o iniciante.
+ */
+export const LIMITES_FREE = {
+  clientes: 5,
+  itensPorDocumento: 3,
+} as const;
+
 export type IdPlano = "free" | "pro";
 
 export type Plano = {
@@ -33,33 +51,34 @@ export const PLANOS: Record<IdPlano, Plano> = {
   free: {
     id: "free",
     nome: "Grátis",
-    chamada: "Para começar a organizar hoje",
+    chamada: "Para o MEI que trabalha sozinho",
     precoMensal: 0,
     precoAnual: 0,
     limiteNotas: LIMITE_NOTAS_FREE,
     destaques: [
-      `${LIMITE_NOTAS_FREE} notas lidas por foto no mês`,
+      "Recibos e orçamentos ilimitados, com numeração própria",
       "Lançamentos manuais ilimitados",
-      "Recibos e orçamentos com numeração própria",
       "Cobrança com PIX copia e cola",
-      "Relatório do mês em PDF e planilha",
       "Alerta do teto do MEI",
+      "Relatório do mês em PDF e planilha",
+      `Até ${LIMITES_FREE.clientes} clientes e ${LIMITES_FREE.itensPorDocumento} itens por documento`,
+      `${LIMITE_NOTAS_FREE} despesas lidas por foto no mês`,
     ],
   },
   pro: {
     id: "pro",
     nome: "Pro",
     chamada: "Para quem quer parecer — e ser — profissional",
-    precoMensal: 29.9,
-    precoAnual: 24.9,
+    precoMensal: 19.9,
+    precoAnual: 16.9,
     limiteNotas: null,
     destaques: [
       "Seu logo e sua cor no recibo",
       "Link do recibo para mandar no WhatsApp, com PIX embutido",
       "Cliente aceita o orçamento pelo link",
-      "Projeção do teto: saiba em que mês você chega no limite",
+      "Clientes e itens sem limite",
       "Relatório de qualquer período, não só do mês",
-      `Até ${LIMITE_NOTAS_PRO} notas lidas por foto no mês`,
+      `Até ${LIMITE_NOTAS_PRO} despesas lidas por foto no mês`,
       "Tudo do plano grátis",
     ],
   },
@@ -97,8 +116,23 @@ export function temRecurso(
 export type PerfilPlano = {
   plano: string | null;
   plano_expira_em: string | null;
+  trial_expira_em?: string | null;
   limite_notas_mes?: number | null;
 };
+
+/** Dias que faltam do teste. Zero quando não há teste ativo. */
+export function diasDeTesteRestantes(
+  perfil: PerfilPlano | null | undefined
+): number {
+  if (!perfil?.trial_expira_em) return 0;
+  const restam = new Date(perfil.trial_expira_em).getTime() - Date.now();
+  return restam > 0 ? Math.ceil(restam / 86_400_000) : 0;
+}
+
+/** Se o Pro vem do teste e não de assinatura paga. */
+export function estaEmTeste(perfil: PerfilPlano | null | undefined): boolean {
+  return diasDeTesteRestantes(perfil) > 0;
+}
 
 /**
  * Plano que de fato vale agora.
@@ -108,7 +142,10 @@ export type PerfilPlano = {
  * para sempre. Espelha `plano_efetivo()` no banco.
  */
 export function planoEfetivo(perfil: PerfilPlano | null | undefined): IdPlano {
-  if (!perfil || perfil.plano !== "pro") return "free";
+  if (!perfil) return "free";
+  // Espelha `plano_efetivo()` no banco, teste incluído.
+  if (estaEmTeste(perfil)) return "pro";
+  if (perfil.plano !== "pro") return "free";
   if (!perfil.plano_expira_em) return "pro";
   return new Date(perfil.plano_expira_em) > new Date() ? "pro" : "free";
 }

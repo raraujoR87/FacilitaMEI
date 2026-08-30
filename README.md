@@ -288,6 +288,37 @@ dados. O histórico aparece na própria tela do documento, e captura até as
 mudanças causadas por outros gatilhos — trocar um item recalcula o total, e
 isso também fica registrado.
 
+## Conversão: 14 dias de Pro, depois limites de escala
+
+Todo cadastro nasce com **14 dias de Pro**. Perder o que já se teve converte
+muito mais do que nunca ter tido, e nesses 14 dias a pessoa forma o hábito
+com o produto inteiro. O aviso da contagem fica em todas as telas: sem ele,
+o fim do teste chega como surpresa desagradável em vez de decisão de compra.
+
+Depois, o grátis limita por **escala**, não por função — `clientes` até 5 e
+`itensPorDocumento` até 3. Quem cresceu esbarra; quem está começando não
+sente. O concorrente aqui é o caderno e o WhatsApp: grátis capado demais faz
+voltar para o papel, e aí não há o que converter.
+
+Ao cair para o grátis **nada é apagado**: quem cadastrou 12 clientes no teste
+continua com os 12, só não cria o 13º. A mensagem de limite diz isso, porque
+a dúvida "vou perder meus dados?" é o que trava a decisão.
+
+**Editar registro fica fora dos limites de propósito.** Erro de digitação que
+não dá para corrigir gera raiva, e atinge justamente o iniciante que ainda
+não foi convertido.
+
+## Por que a leitura de nota não é o argumento do Pro
+
+O que o MEI fotografa é **despesa** — cupom do fornecedor, boleto, nota de
+material. Receita ele emite no app; não existe foto de um recibo que ele
+mesmo vai gerar, e orçamento nunca é fotografado.
+
+E MEI paga DAS fixo: despesa não reduz imposto dele. Serve para saber se o
+negócio dá lucro e para o contador — "bom ter", não "preciso ter". Por isso
+a leitura por foto é conveniência, e a escada do Pro se apoia em recibo,
+cobrança e teto, que são o "preciso ter".
+
 ## O que separa o grátis do Pro
 
 O Pro tinha um único argumento — mais notas lidas por IA — e era justamente

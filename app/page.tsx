@@ -83,14 +83,15 @@ function Hero() {
           className="mt-6 text-3xl sm:text-4xl md:text-5xl leading-[1.1]"
           style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
         >
-          Tira a foto da nota.
-          <br />A gente organiza o resto.
+          Seu financeiro
+          <br />
+          resolvido no celular.
         </h1>
 
         <p className="mt-5 text-base md:text-lg" style={{ color: "var(--tinta-suave)" }}>
-          Financeiro, vendas e cobrança num só lugar — sem planilha, sem curso,
-          sem contador te cobrando pra organizar papel. Você fotografa, o
-          AgilizeMei categoriza e monta o relatório do mês.
+          Emita recibo com a sua marca, cobre por PIX e saiba o quanto falta
+          para o teto do MEI. Sem planilha, sem curso, sem contador te cobrando
+          para organizar papel.
         </p>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3">
@@ -102,7 +103,7 @@ function Hero() {
             className="self-center text-sm text-center sm:text-left"
             style={{ color: "var(--tinta-suave)" }}
           >
-            Sem cartão de crédito
+            Começa com 14 dias de Pro
           </span>
         </div>
 
@@ -208,9 +209,9 @@ function ComoFunciona() {
   const passos = [
     {
       Icone: Camera,
-      titulo: "Fotografe a nota",
+      titulo: "Fotografe o que você gastou",
       texto:
-        "Cupom, boleto ou recibo. A leitura por IA tira o valor, a data e o fornecedor sozinha.",
+        "Cupom do fornecedor, boleto, nota de material. A leitura por IA tira valor, data e fornecedor sozinha — o que você venderia tempo digitando.",
     },
     {
       Icone: Sparkles,
