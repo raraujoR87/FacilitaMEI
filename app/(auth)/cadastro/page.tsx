@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function CadastroPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [nomeNegocio, setNomeNegocio] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -18,6 +17,10 @@ export default function CadastroPage() {
     e.preventDefault();
     setErro(null);
     setCarregando(true);
+
+    // Construído aqui, e não no corpo do componente: durante o
+    // prerender não há navegador nem variáveis públicas garantidas.
+    const supabase = createClient();
 
     const { error } = await supabase.auth.signUp({
       email,

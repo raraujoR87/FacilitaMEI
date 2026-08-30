@@ -1,8 +1,16 @@
-"use client";
-
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useEffect } from "react";
+import { exigirUsuario } from "@/lib/auth";
+import { excluirLancamento } from "@/app/actions/lancamentos";
+import {
+  formatarData,
+  formatarMoeda,
+  intervaloDoMes,
+  mesAtual,
+} from "@/lib/formato";
+import { Recibo, Vazio } from "@/components/ui/campos";
+import { BotaoSubmit } from "@/components/ui/botao-submit";
+import { SeletorMes } from "@/components/ui/seletor-mes";
+import { FormularioLancamento } from "./formulario";
+import { EnviarNota } from "./enviar-nota";
 
 type Lancamento = {
   id: string;
@@ -11,117 +19,118 @@ type Lancamento = {
   tipo: "receita" | "despesa";
   data_competencia: string;
   fornecedor_cliente: string | null;
+  origem: string;
+  categorias: { nome: string } | { nome: string }[] | null;
 };
 
-export default function FinanceiroPage() {
-  const supabase = createClient();
-  const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
-  const [enviando, setEnviando] = useState(false);
-  const [mensagem, setMensagem] = useState<string | null>(null);
+function nomeCategoria(categorias: Lancamento["categorias"]): string | null {
+  const c = Array.isArray(categorias) ? categorias[0] : categorias;
+  return c?.nome ?? null;
+}
 
-  async function carregarLancamentos() {
-    const { data } = await supabase
+export default async function FinanceiroPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mes?: string }>;
+}) {
+  const { supabase, user } = await exigirUsuario();
+  const mes = (await searchParams).mes ?? mesAtual();
+  const { inicio, fim } = intervaloDoMes(mes);
+
+  const [{ data: lancamentos }, { data: categorias }] = await Promise.all([
+    supabase
       .from("lancamentos")
-      .select("id, descricao, valor, tipo, data_competencia, fornecedor_cliente")
+      .select(
+        "id, descricao, valor, tipo, data_competencia, fornecedor_cliente, origem, categorias(nome)"
+      )
+      .eq("user_id", user.id)
+      .gte("data_competencia", inicio)
+      .lte("data_competencia", fim)
       .order("data_competencia", { ascending: false })
-      .limit(50);
-    setLancamentos(data ?? []);
-  }
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("categorias")
+      .select("id, nome, tipo")
+      .eq("user_id", user.id)
+      .order("nome"),
+  ]);
 
-  useEffect(() => {
-    carregarLancamentos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const arquivo = e.target.files?.[0];
-    if (!arquivo) return;
-
-    setEnviando(true);
-    setMensagem(null);
-
-    const formData = new FormData();
-    formData.append("arquivo", arquivo);
-
-    const resposta = await fetch("/api/notas/upload", {
-      method: "POST",
-      body: formData,
-    });
-
-    const resultado = await resposta.json();
-    setEnviando(false);
-
-    if (!resposta.ok) {
-      setMensagem(resultado.error ?? "Não foi possível processar a nota.");
-      return;
-    }
-
-    setMensagem("Nota lançada com sucesso.");
-    carregarLancamentos();
-    e.target.value = "";
-  }
+  const lista = (lancamentos ?? []) as Lancamento[];
+  const receitas = lista
+    .filter((l) => l.tipo === "receita")
+    .reduce((soma, l) => soma + Number(l.valor), 0);
+  const despesas = lista
+    .filter((l) => l.tipo === "despesa")
+    .reduce((soma, l) => soma + Number(l.valor), 0);
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1
-          className="text-2xl"
-          style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
-        >
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <h1 className="text-2xl" style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}>
           Financeiro
         </h1>
-        <label
-          className="cursor-pointer text-sm font-medium px-4 py-2 rounded-md text-white"
-          style={{ background: "var(--tinta)" }}
-        >
-          {enviando ? "Processando..." : "+ Lançar nota"}
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            className="hidden"
-            onChange={handleUpload}
-            disabled={enviando}
-          />
-        </label>
+        <div className="flex items-center gap-3">
+          <SeletorMes mes={mes} />
+          <EnviarNota />
+        </div>
       </div>
 
-      {mensagem && (
-        <p className="text-sm mb-4" style={{ color: "var(--tinta-suave)" }}>
-          {mensagem}
-        </p>
-      )}
+      <FormularioLancamento categorias={categorias ?? []} />
 
-      <div className="fita-recibo px-6 py-6">
-        {lancamentos.length === 0 ? (
-          <p className="text-sm py-6 text-center" style={{ color: "var(--tinta-suave)" }}>
-            Nenhum lançamento ainda. Tire uma foto da nota ou manda pelo
-            WhatsApp.
-          </p>
+      <Recibo titulo={`Lançamentos · ${lista.length}`}>
+        {lista.length === 0 ? (
+          <Vazio>
+            Nenhum lançamento neste mês. Use o formulário acima ou envie a foto
+            de uma nota.
+          </Vazio>
         ) : (
-          <div className="flex flex-col divide-y" style={{ borderColor: "var(--borda)" }}>
-            {lancamentos.map((l) => (
-              <div key={l.id} className="flex justify-between items-start py-3 text-sm">
-                <div>
-                  <p className="font-medium">{l.descricao}</p>
-                  <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
-                    {l.fornecedor_cliente ?? "—"} ·{" "}
-                    {new Date(l.data_competencia).toLocaleDateString("pt-BR")}
-                  </p>
+          <>
+            <div className="flex flex-col divide-y" style={{ borderColor: "var(--borda)" }}>
+              {lista.map((l) => (
+                <div key={l.id} className="flex justify-between items-start gap-4 py-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{l.descricao}</p>
+                    <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
+                      {formatarData(l.data_competencia)}
+                      {nomeCategoria(l.categorias) && ` · ${nomeCategoria(l.categorias)}`}
+                      {l.fornecedor_cliente && ` · ${l.fornecedor_cliente}`}
+                      {l.origem === "ocr" && " · lido da nota"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span
+                      className="valor"
+                      style={{ color: l.tipo === "receita" ? "var(--positivo)" : "var(--selo)" }}
+                    >
+                      {l.tipo === "receita" ? "+" : "−"}
+                      {formatarMoeda(Number(l.valor))}
+                    </span>
+                    <form action={excluirLancamento}>
+                      <input type="hidden" name="id" value={l.id} />
+                      <BotaoSubmit variante="discreto" carregando="...">
+                        Excluir
+                      </BotaoSubmit>
+                    </form>
+                  </div>
                 </div>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono-valor)",
-                    color: l.tipo === "receita" ? "var(--positivo)" : "var(--selo)",
-                  }}
-                >
-                  {l.tipo === "receita" ? "+" : "-"}R${" "}
-                  {Number(l.valor).toFixed(2)}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            <div
+              className="mt-4 pt-4 border-t border-dashed flex justify-between text-sm"
+              style={{ borderColor: "var(--borda)" }}
+            >
+              <span style={{ color: "var(--tinta-suave)" }}>Saldo do mês</span>
+              <span
+                className="valor font-semibold"
+                style={{ color: receitas - despesas >= 0 ? "var(--positivo)" : "var(--selo)" }}
+              >
+                {formatarMoeda(receitas - despesas)}
+              </span>
+            </div>
+          </>
         )}
-      </div>
+      </Recibo>
     </div>
   );
 }

@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
@@ -17,6 +16,10 @@ export default function LoginPage() {
     e.preventDefault();
     setErro(null);
     setCarregando(true);
+
+    // Construído aqui, e não no corpo do componente: durante o
+    // prerender não há navegador nem variáveis públicas garantidas.
+    const supabase = createClient();
 
     const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
 

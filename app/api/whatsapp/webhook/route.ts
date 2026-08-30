@@ -4,10 +4,20 @@ import { createClient } from "@supabase/supabase-js";
 // Cliente com service role — necessário aqui porque o webhook do WhatsApp
 // não tem sessão de usuário autenticado; identificamos o tenant pelo
 // telefone cadastrado em `perfis.telefone_whatsapp`.
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+//
+// Criado sob demanda, e não no escopo do módulo: instanciar na importação
+// fazia o `next build` falhar em qualquer ambiente sem as chaves do
+// Supabase configuradas, já que a coleta de rotas importa este arquivo.
+function clienteAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const chave = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !chave) {
+    throw new Error("Supabase não configurado para o webhook do WhatsApp");
+  }
+
+  return createClient(url, chave);
+}
 
 // Verificação do webhook (Meta WhatsApp Cloud API faz um GET de validação)
 export async function GET(request: NextRequest) {
@@ -35,7 +45,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true }); // evento sem mensagem relevante
   }
 
-  const { data: perfil } = await supabaseAdmin
+  const { data: perfil } = await clienteAdmin()
     .from("perfis")
     .select("id")
     .eq("telefone_whatsapp", telefoneRemetente)

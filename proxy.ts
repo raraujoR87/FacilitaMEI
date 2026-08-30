@@ -31,10 +31,18 @@ export async function proxy(request: NextRequest) {
 
   const isAuthRoute = request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/cadastro");
-  const isProtectedRoute = request.nextUrl.pathname.startsWith("/dashboard") ||
-    request.nextUrl.pathname.startsWith("/financeiro") ||
-    request.nextUrl.pathname.startsWith("/vendas") ||
-    request.nextUrl.pathname.startsWith("/cobranca");
+  const ROTAS_PROTEGIDAS = [
+    "/dashboard",
+    "/financeiro",
+    "/vendas",
+    "/cobranca",
+    "/clientes",
+    "/relatorio",
+    "/configuracoes",
+  ];
+  const isProtectedRoute = ROTAS_PROTEGIDAS.some((rota) =>
+    request.nextUrl.pathname.startsWith(rota)
+  );
 
   if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone();

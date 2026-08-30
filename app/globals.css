@@ -79,3 +79,157 @@ body {
   text-transform: uppercase;
   transform: rotate(-4deg);
 }
+
+/* ============================================================
+   Formulários e ações
+   ============================================================ */
+.rotulo {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  color: var(--tinta);
+}
+
+.campo {
+  width: 100%;
+  border: 1px solid var(--borda);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9375rem;
+  background: #ffffff;
+  color: var(--tinta);
+}
+
+.campo:focus-visible {
+  outline: 2px solid var(--positivo);
+  outline-offset: -1px;
+}
+
+.campo-valor {
+  font-family: var(--font-mono-valor);
+  text-align: right;
+}
+
+.dica {
+  font-size: 0.75rem;
+  color: var(--tinta-suave);
+  margin-top: 0.25rem;
+}
+
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: 0.375rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  background: var(--tinta);
+  color: #ffffff;
+  border: 1px solid var(--tinta);
+  cursor: pointer;
+}
+
+.botao:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.botao-secundario {
+  background: transparent;
+  color: var(--tinta);
+  border-color: var(--borda);
+}
+
+.botao-discreto {
+  background: transparent;
+  border-color: transparent;
+  color: var(--tinta-suave);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.botao-discreto:hover {
+  color: var(--selo);
+}
+
+/* Mensagens de retorno das ações */
+.aviso {
+  border-radius: 0.375rem;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid;
+}
+
+.aviso-erro {
+  border-color: var(--selo);
+  color: var(--selo);
+  background: rgba(194, 59, 34, 0.06);
+}
+
+.aviso-sucesso {
+  border-color: var(--positivo);
+  color: var(--positivo);
+  background: rgba(47, 110, 91, 0.06);
+}
+
+/* Valores monetários em tabelas e listas */
+.valor {
+  font-family: var(--font-mono-valor);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Item ativo da navegação lateral */
+.nav-item {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  display: block;
+}
+
+.nav-item:hover {
+  background: rgba(26, 26, 26, 0.05);
+}
+
+.nav-item[aria-current="page"] {
+  background: rgba(26, 26, 26, 0.07);
+  font-weight: 600;
+}
+
+/* O PIX copia-e-cola precisa quebrar em qualquer ponto */
+.brcode {
+  font-family: var(--font-mono-valor);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  word-break: break-all;
+  color: var(--tinta-suave);
+  background: var(--papel-escuro);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.625rem;
+}
+
+/* ============================================================
+   Impressão — o relatório do contador sai daqui
+   ============================================================ */
+@media print {
+  .nao-imprimir {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  .fita-recibo {
+    border: none;
+    box-shadow: none;
+  }
+
+  .fita-recibo::before,
+  .fita-recibo::after {
+    display: none;
+  }
+}

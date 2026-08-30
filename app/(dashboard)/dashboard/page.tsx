@@ -1,96 +1,158 @@
-import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
+import { exigirUsuario } from "@/lib/auth";
+import {
+  estaVencido,
+  formatarData,
+  formatarMoeda,
+  intervaloDoMes,
+  mesAtual,
+  rotuloMes,
+} from "@/lib/formato";
+import { Recibo, Vazio } from "@/components/ui/campos";
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await exigirUsuario();
+  const mes = mesAtual();
+  const { inicio, fim } = intervaloDoMes(mes);
 
-  const inicioDoMes = new Date();
-  inicioDoMes.setDate(1);
+  const [{ data: lancamentos }, { data: pendentes }] = await Promise.all([
+    supabase
+      .from("lancamentos")
+      .select("descricao, valor, tipo, data_competencia")
+      .eq("user_id", user.id)
+      .gte("data_competencia", inicio)
+      .lte("data_competencia", fim)
+      .order("data_competencia", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("documentos_venda")
+      .select("valor, data_vencimento")
+      .eq("user_id", user.id)
+      .eq("status", "pendente"),
+  ]);
 
-  const { data: lancamentos } = user
-    ? await supabase
-        .from("lancamentos")
-        .select("descricao, valor, tipo, data_competencia")
-        .eq("user_id", user.id)
-        .gte("data_competencia", inicioDoMes.toISOString().slice(0, 10))
-        .order("data_competencia", { ascending: false })
-        .limit(8)
-    : { data: [] };
-
-  const totalReceitas = (lancamentos ?? [])
+  const lista = lancamentos ?? [];
+  const receitas = lista
     .filter((l) => l.tipo === "receita")
     .reduce((soma, l) => soma + Number(l.valor), 0);
-  const totalDespesas = (lancamentos ?? [])
+  const despesas = lista
     .filter((l) => l.tipo === "despesa")
     .reduce((soma, l) => soma + Number(l.valor), 0);
-  const saldo = totalReceitas - totalDespesas;
+
+  const aReceber = (pendentes ?? []).reduce((soma, p) => soma + Number(p.valor), 0);
+  const vencidas = (pendentes ?? []).filter((p) => estaVencido(p.data_vencimento)).length;
 
   return (
     <div>
-      <h1
-        className="text-2xl mb-6"
-        style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
-      >
+      <h1 className="text-2xl" style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}>
         Visão geral
       </h1>
+      <p className="text-sm mb-6 capitalize" style={{ color: "var(--tinta-suave)" }}>
+        {rotuloMes(mes)}
+      </p>
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <CardResumo label="Receitas do mês" valor={totalReceitas} cor="var(--positivo)" />
-        <CardResumo label="Despesas do mês" valor={totalDespesas} cor="var(--selo)" />
-        <CardResumo label="Saldo" valor={saldo} cor="var(--tinta)" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <Cartao label="Entradas" valor={receitas} cor="var(--positivo)" />
+        <Cartao label="Saídas" valor={despesas} cor="var(--selo)" />
+        <Cartao
+          label="Saldo"
+          valor={receitas - despesas}
+          cor={receitas - despesas >= 0 ? "var(--tinta)" : "var(--selo)"}
+        />
+        <Cartao
+          label="A receber"
+          valor={aReceber}
+          cor="var(--pendente)"
+          href="/cobranca"
+          nota={vencidas > 0 ? `${vencidas} vencida(s)` : undefined}
+        />
       </div>
 
-      <div className="fita-recibo px-6 py-6">
-        <p className="text-xs uppercase tracking-widest mb-4" style={{ color: "var(--tinta-suave)" }}>
-          Últimos lançamentos
-        </p>
-        {!lancamentos || lancamentos.length === 0 ? (
-          <p className="text-sm py-6 text-center" style={{ color: "var(--tinta-suave)" }}>
-            Nenhum lançamento ainda. Manda a foto de uma nota pelo WhatsApp
-            pra começar.
-          </p>
+      <Recibo titulo="Últimos lançamentos">
+        {lista.length === 0 ? (
+          <Vazio>
+            Nenhum lançamento este mês.{" "}
+            <Link href="/financeiro" className="underline font-medium">
+              Lançar o primeiro
+            </Link>
+            .
+          </Vazio>
         ) : (
-          <div className="flex flex-col divide-y" style={{ borderColor: "var(--borda)" }}>
-            {lancamentos.map((l, i) => (
-              <div key={i} className="flex justify-between py-2.5 text-sm">
-                <div>
-                  <p>{l.descricao}</p>
-                  <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
-                    {new Date(l.data_competencia).toLocaleDateString("pt-BR")}
-                  </p>
+          <>
+            <div className="flex flex-col divide-y" style={{ borderColor: "var(--borda)" }}>
+              {lista.slice(0, 8).map((l, i) => (
+                <div key={i} className="flex justify-between items-start gap-4 py-2.5 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate">{l.descricao}</p>
+                    <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
+                      {formatarData(l.data_competencia)}
+                    </p>
+                  </div>
+                  <span
+                    className="valor"
+                    style={{ color: l.tipo === "receita" ? "var(--positivo)" : "var(--selo)" }}
+                  >
+                    {l.tipo === "receita" ? "+" : "−"}
+                    {formatarMoeda(Number(l.valor))}
+                  </span>
                 </div>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono-valor)",
-                    color: l.tipo === "receita" ? "var(--positivo)" : "var(--selo)",
-                  }}
-                >
-                  {l.tipo === "receita" ? "+" : "-"}R${" "}
-                  {Number(l.valor).toFixed(2)}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+            {lista.length > 8 && (
+              <Link
+                href="/financeiro"
+                className="text-sm underline mt-4 inline-block"
+                style={{ color: "var(--tinta-suave)" }}
+              >
+                Ver todos os {lista.length}
+              </Link>
+            )}
+          </>
         )}
-      </div>
+      </Recibo>
     </div>
   );
 }
 
-function CardResumo({ label, valor, cor }: { label: string; valor: number; cor: string }) {
-  return (
-    <div className="rounded-lg border px-4 py-4" style={{ borderColor: "var(--borda)" }}>
+function Cartao({
+  label,
+  valor,
+  cor,
+  href,
+  nota,
+}: {
+  label: string;
+  valor: number;
+  cor: string;
+  href?: string;
+  nota?: string;
+}) {
+  const conteudo = (
+    <>
       <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
         {label}
       </p>
-      <p
-        className="text-xl mt-1"
-        style={{ fontFamily: "var(--font-mono-valor)", color: cor }}
-      >
-        R$ {valor.toFixed(2)}
+      <p className="valor text-lg mt-1" style={{ color: cor }}>
+        {formatarMoeda(valor)}
       </p>
+      {nota && (
+        <p className="text-xs mt-0.5" style={{ color: "var(--selo)" }}>
+          {nota}
+        </p>
+      )}
+    </>
+  );
+
+  const classe = "rounded-lg border px-4 py-4 block";
+  const estilo = { borderColor: "var(--borda)" };
+
+  return href ? (
+    <Link href={href} className={`${classe} hover:bg-black/[0.03]`} style={estilo}>
+      {conteudo}
+    </Link>
+  ) : (
+    <div className={classe} style={estilo}>
+      {conteudo}
     </div>
   );
 }
