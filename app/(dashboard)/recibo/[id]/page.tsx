@@ -8,7 +8,7 @@ import { Carimbo } from "@/components/ui/campos";
 import { BotaoCopiar } from "@/components/ui/botao-copiar";
 import { BotaoImprimir } from "@/app/(dashboard)/relatorio/botao-imprimir";
 import { formatarMomento } from "@/lib/admin";
-import { temRecurso } from "@/lib/planos";
+import { COLUNAS_PLANO, temRecurso } from "@/lib/planos";
 import { Compartilhar } from "./compartilhar";
 
 type Item = {
@@ -59,7 +59,7 @@ export default async function ReciboPage({
     supabase
       .from("perfis")
       .select(
-        "nome_negocio, cnpj, municipio, uf, chave_pix, tipo_chave_pix, nome_titular_pix, cidade_pix, logo_url, cor_marca, plano, plano_expira_em"
+        `nome_negocio, cnpj, municipio, uf, chave_pix, tipo_chave_pix, nome_titular_pix, cidade_pix, logo_url, cor_marca, ${COLUNAS_PLANO}`
       )
       .eq("id", user.id)
       .single(),

@@ -4,7 +4,7 @@ import { sair } from "@/app/actions/sessao";
 import { NavegacaoInferior, NavegacaoLateral } from "@/components/ui/navegacao";
 import { Marca } from "@/components/ui/marca";
 import { AvisoTeste } from "@/components/ui/aviso-teste";
-import { estaEmTeste, planoEfetivo } from "@/lib/planos";
+import { COLUNAS_PLANO, estaEmTeste, planoEfetivo } from "@/lib/planos";
 
 export default async function DashboardLayout({
   children,
@@ -20,7 +20,7 @@ export default async function DashboardLayout({
     user
       ? supabase
           .from("perfis")
-          .select("nome_negocio, plano, plano_expira_em, trial_expira_em")
+          .select(`nome_negocio, ${COLUNAS_PLANO}`)
           .eq("id", user.id)
           .single()
       : Promise.resolve({ data: null }),

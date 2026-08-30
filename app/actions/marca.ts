@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { exigirUsuario } from "@/lib/auth";
 import { type EstadoForm, lerTexto } from "@/app/actions/tipos";
-import { planoEfetivo } from "@/lib/planos";
+import { COLUNAS_PLANO, planoEfetivo } from "@/lib/planos";
 
 const TIPOS_ACEITOS = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
 const TAMANHO_MAXIMO = 2 * 1024 * 1024;
@@ -23,7 +23,7 @@ export async function atualizarMarca(
 
   const { data: perfil } = await supabase
     .from("perfis")
-    .select("plano, plano_expira_em, logo_url")
+    .select(`${COLUNAS_PLANO}, logo_url`)
     .eq("id", user.id)
     .single();
 
@@ -97,7 +97,7 @@ export async function compartilharDocumento(
 
   const { data: perfil } = await supabase
     .from("perfis")
-    .select("plano, plano_expira_em")
+    .select(COLUNAS_PLANO)
     .eq("id", user.id)
     .single();
 

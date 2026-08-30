@@ -113,10 +113,21 @@ export function temRecurso(
   return RECURSOS_PRO.includes(recurso) && planoEfetivo(perfil) === "pro";
 }
 
+/**
+ * Colunas que decidem o plano. Use esta constante em todo `select` cujo
+ * resultado vá para `planoEfetivo` e companhia.
+ *
+ * Existe porque o campo de teste já foi esquecido em cinco consultas: o
+ * tipo o declarava opcional, o TypeScript não acusava, e o resultado era
+ * uma conta em teste sendo tratada como grátis em todo lugar menos na barra
+ * lateral. Agora o campo é obrigatório e o compilador cobra.
+ */
+export const COLUNAS_PLANO = "plano, plano_expira_em, trial_expira_em";
+
 export type PerfilPlano = {
   plano: string | null;
   plano_expira_em: string | null;
-  trial_expira_em?: string | null;
+  trial_expira_em: string | null;
   limite_notas_mes?: number | null;
 };
 
@@ -143,6 +154,17 @@ export function estaEmTeste(perfil: PerfilPlano | null | undefined): boolean {
  */
 export function planoEfetivo(perfil: PerfilPlano | null | undefined): IdPlano {
   if (!perfil) return "free";
+
+  // Campo ausente é diferente de campo nulo: nulo significa "sem teste",
+  // ausente significa que a consulta esqueceu a coluna — e o resultado
+  // seria rebaixar silenciosamente uma conta em teste. Como nem todo
+  // retorno do Supabase é tipado, o aviso cobre o que o compilador não vê.
+  if (process.env.NODE_ENV !== "production" && !("trial_expira_em" in perfil)) {
+    console.error(
+      "[planos] perfil sem `trial_expira_em`: use COLUNAS_PLANO no select, ou a conta em teste será tratada como grátis."
+    );
+  }
+
   // Espelha `plano_efetivo()` no banco, teste incluído.
   if (estaEmTeste(perfil)) return "pro";
   if (perfil.plano !== "pro") return "free";

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { extrairNota, NotaIlegivelError } from "@/lib/ocr";
 import { hoje } from "@/lib/formato";
-import { limiteDeNotas, planoEfetivo } from "@/lib/planos";
+import { COLUNAS_PLANO, limiteDeNotas, planoEfetivo } from "@/lib/planos";
 
 const TAMANHO_MAXIMO = 10 * 1024 * 1024; // 10 MB — foto de celular cabe folgado
 
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   // Vale para os dois planos: no Pro é uso justo, não porta aberta.
   const { data: perfil } = await supabase
     .from("perfis")
-    .select("plano, plano_expira_em, limite_notas_mes")
+    .select(`${COLUNAS_PLANO}, limite_notas_mes`)
     .eq("id", user.id)
     .single();
 

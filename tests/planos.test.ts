@@ -64,3 +64,19 @@ test("perfil ausente é tratado como grátis", () => {
   assert.equal(planoEfetivo(null), "free");
   assert.equal(planoEfetivo(undefined), "free");
 });
+
+test("perfil sem a coluna do teste não é rebaixado em silêncio", () => {
+  // Foi exatamente este o bug: cinco consultas esqueceram
+  // `trial_expira_em`, o tipo o declarava opcional, e toda conta em teste
+  // aparecia como grátis fora da barra lateral.
+  const semColuna = { plano: "free", plano_expira_em: null } as never;
+  const avisos: unknown[] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => avisos.push(args);
+  try {
+    planoEfetivo(semColuna);
+  } finally {
+    console.error = original;
+  }
+  assert.equal(avisos.length, 1, "precisa avisar em desenvolvimento");
+});

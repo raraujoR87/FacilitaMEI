@@ -2,7 +2,7 @@ import { exigirUsuario } from "@/lib/auth";
 import { FormularioPerfil, type Perfil } from "./formulario";
 import { SeusDados } from "./seus-dados";
 import { MarcaDoNegocio } from "./marca";
-import { temRecurso } from "@/lib/planos";
+import { COLUNAS_PLANO, temRecurso } from "@/lib/planos";
 
 export default async function ConfiguracoesPage() {
   const { supabase, user } = await exigirUsuario();
@@ -10,7 +10,7 @@ export default async function ConfiguracoesPage() {
   const { data: perfil } = await supabase
     .from("perfis")
     .select(
-      "nome_negocio, cnpj, data_abertura_mei, municipio, uf, telefone_whatsapp, chave_pix, tipo_chave_pix, nome_titular_pix, cidade_pix, logo_url, cor_marca, plano, plano_expira_em"
+      `nome_negocio, cnpj, data_abertura_mei, municipio, uf, telefone_whatsapp, chave_pix, tipo_chave_pix, nome_titular_pix, cidade_pix, logo_url, cor_marca, ${COLUNAS_PLANO}`
     )
     .eq("id", user.id)
     .single();

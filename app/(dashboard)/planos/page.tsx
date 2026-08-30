@@ -4,6 +4,7 @@ import { formatarMoeda, intervaloDoMes, mesAtual, rotuloMes } from "@/lib/format
 import {
   contatoWhatsApp,
   economiaAnual,
+  COLUNAS_PLANO,
   diasDeTesteRestantes,
   estaEmTeste,
   limiteDeNotas,
@@ -21,7 +22,7 @@ export default async function PlanosPage() {
   const [{ data: perfil }, { count }] = await Promise.all([
     supabase
       .from("perfis")
-      .select("plano, plano_expira_em, trial_expira_em, limite_notas_mes")
+      .select(`${COLUNAS_PLANO}, limite_notas_mes`)
       .eq("id", user.id)
       .single(),
     supabase
