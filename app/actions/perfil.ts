@@ -34,6 +34,9 @@ export async function atualizarPerfil(
     .update({
       nome_negocio: nomeNegocio,
       cnpj: lerOpcional(formData, "cnpj"),
+      data_abertura_mei: lerOpcional(formData, "data_abertura_mei"),
+      municipio: lerOpcional(formData, "municipio"),
+      uf: lerOpcional(formData, "uf")?.toUpperCase().slice(0, 2) || null,
       telefone_whatsapp: lerOpcional(formData, "telefone_whatsapp"),
       chave_pix: chavePix,
       tipo_chave_pix: chavePix ? tipoChave : null,
@@ -52,5 +55,6 @@ export async function atualizarPerfil(
 
   revalidatePath("/configuracoes");
   revalidatePath("/cobranca");
+  revalidatePath("/dashboard");
   return { sucesso: "Dados salvos." };
 }

@@ -15,11 +15,27 @@ import { Marca } from "@/components/ui/marca";
 import { formatarMoeda } from "@/lib/formato";
 import { economiaAnual, PLANOS } from "@/lib/planos";
 
-export default function LandingPage() {
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ conta?: string }>;
+}) {
+  const { conta } = await searchParams;
+
   return (
     <div className="min-h-screen flex flex-col">
       <Cabecalho />
       <main className="flex-1">
+        {/* Sem isso, quem acabou de excluir a conta cai numa página de vendas
+            sem nenhuma confirmação de que o pedido foi atendido. */}
+        {conta === "excluida" && (
+          <div className="max-w-5xl mx-auto w-full px-5 pt-6">
+            <p className="aviso aviso-sucesso" role="status">
+              Sua conta foi excluída e os dados apagados. Obrigado por ter
+              usado o AgilizeMei — se mudar de ideia, é só criar outra.
+            </p>
+          </div>
+        )}
         <Hero />
         <Dor />
         <ComoFunciona />
@@ -478,7 +494,9 @@ function Rodape() {
         <p className="text-xs text-center" style={{ color: "var(--tinta-suave)" }}>
           Feito para o microempreendedor brasileiro.
         </p>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
+          <Link href="/privacidade">Privacidade</Link>
+          <Link href="/termos">Termos</Link>
           <Link href="/login">Entrar</Link>
           <Link href="/cadastro" className="font-medium">
             Criar conta

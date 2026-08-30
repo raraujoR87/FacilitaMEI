@@ -42,6 +42,18 @@ export function AcoesTenant({ tenant }: { tenant: Tenant }) {
             className="campo w-24 py-1.5"
           />
         </div>
+        <div>
+          <label className="rotulo" htmlFor={`validade-${tenant.user_id}`}>
+            Pro até
+          </label>
+          <input
+            id={`validade-${tenant.user_id}`}
+            name="plano_expira_em"
+            type="date"
+            defaultValue={tenant.plano_expira_em?.slice(0, 10)}
+            className="campo w-40 py-1.5"
+          />
+        </div>
         <BotaoSubmit variante="secundario">Salvar</BotaoSubmit>
         <div className="w-full">
           <Aviso estado={estadoPlano} />

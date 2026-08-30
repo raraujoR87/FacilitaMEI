@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { extrairNota, NotaIlegivelError } from "@/lib/ocr";
 import { hoje } from "@/lib/formato";
+import { limiteDeNotas, planoEfetivo } from "@/lib/planos";
 
 const TAMANHO_MAXIMO = 10 * 1024 * 1024; // 10 MB — foto de celular cabe folgado
 
@@ -31,30 +32,32 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // O limite do plano é checado antes da chamada de IA — é ela que custa.
+  // O limite é checado antes da chamada de IA — é ela que custa dinheiro.
+  // Vale para os dois planos: no Pro é uso justo, não porta aberta.
   const { data: perfil } = await supabase
     .from("perfis")
-    .select("plano, limite_notas_mes")
+    .select("plano, plano_expira_em, limite_notas_mes")
     .eq("id", user.id)
     .single();
 
-  if (perfil?.plano === "free") {
-    const { count } = await supabase
-      .from("lancamentos")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .in("origem", ["upload", "ocr", "whatsapp"])
-      .gte("created_at", `${hoje().slice(0, 7)}-01T00:00:00Z`);
+  const limite = limiteDeNotas(perfil);
+  const { count } = await supabase
+    .from("lancamentos")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .in("origem", ["upload", "ocr", "whatsapp"])
+    .gte("created_at", `${hoje().slice(0, 7)}-01T00:00:00Z`);
 
-    if ((count ?? 0) >= (perfil.limite_notas_mes ?? 10)) {
-      return NextResponse.json(
-        {
-          error:
-            "Você usou as notas do plano grátis deste mês. Continue lançando manualmente, ou veja o plano Pro em Plano e cobrança.",
-        },
-        { status: 402 }
-      );
-    }
+  if ((count ?? 0) >= limite) {
+    return NextResponse.json(
+      {
+        error:
+          planoEfetivo(perfil) === "pro"
+            ? `Você chegou a ${limite} notas lidas neste mês, o limite de uso justo do Pro. Fale com a gente se precisar de mais.`
+            : "Você usou as notas do plano grátis deste mês. Continue lançando manualmente, ou veja o plano Pro em Plano e cobrança.",
+      },
+      { status: 402 }
+    );
   }
 
   const bytes = Buffer.from(await arquivo.arrayBuffer());

@@ -9,13 +9,18 @@ import {
   rotuloMes,
 } from "@/lib/formato";
 import { Recibo, Vazio } from "@/components/ui/campos";
+import { PainelTeto } from "@/components/ui/painel-teto";
+import { situacaoTeto, tetoAplicavel, tetoDoAno } from "@/lib/mei";
 
 export default async function DashboardPage() {
   const { supabase, user } = await exigirUsuario();
   const mes = mesAtual();
   const { inicio, fim } = intervaloDoMes(mes);
 
-  const [{ data: lancamentos }, { data: pendentes }] = await Promise.all([
+  const ano = Number(mes.slice(0, 4));
+
+  const [{ data: lancamentos }, { data: pendentes }, { data: doAno }, { data: perfil }] =
+    await Promise.all([
     supabase
       .from("lancamentos")
       .select("descricao, valor, tipo, data_competencia")
@@ -29,7 +34,23 @@ export default async function DashboardPage() {
       .select("valor, data_vencimento")
       .eq("user_id", user.id)
       .eq("status", "pendente"),
+    // Faturamento do ano inteiro: é o que o teto do MEI mede, não o mês.
+    supabase
+      .from("lancamentos")
+      .select("valor")
+      .eq("user_id", user.id)
+      .eq("tipo", "receita")
+      .gte("data_competencia", `${ano}-01-01`)
+      .lte("data_competencia", `${ano}-12-31`),
+    supabase
+      .from("perfis")
+      .select("data_abertura_mei")
+      .eq("id", user.id)
+      .single(),
   ]);
+
+  const faturamentoAnual = (doAno ?? []).reduce((s, l) => s + Number(l.valor), 0);
+  const teto = situacaoTeto(faturamentoAnual, ano, perfil?.data_abertura_mei);
 
   const lista = lancamentos ?? [];
   const receitas = lista
@@ -50,6 +71,12 @@ export default async function DashboardPage() {
       <p className="text-sm mb-6 primeira-maiuscula" style={{ color: "var(--tinta-suave)" }}>
         {rotuloMes(mes)}
       </p>
+
+      <PainelTeto
+        situacao={teto}
+        ano={ano}
+        proporcional={tetoAplicavel(ano, perfil?.data_abertura_mei) !== tetoDoAno(ano)}
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <Cartao label="Entradas" valor={receitas} cor="var(--positivo)" />

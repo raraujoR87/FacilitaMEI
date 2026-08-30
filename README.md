@@ -224,6 +224,47 @@ Quantidade aceita fração ("7,5 h") e vírgula decimal. Cliente e servidor usam
 o mesmo `lerNumeroBR` — antes não usavam, e `Number("7,5")` virava `NaN`: o
 item era descartado em silêncio e o recibo saía menor que o combinado.
 
+## Teto do MEI
+
+O app conhece o faturamento do ano — é a única ferramenta do cliente que
+conhece. Estourar o teto sem perceber custa desenquadramento retroativo, e
+avisar antes é o recurso de maior valor que o produto tem.
+
+`lib/mei.ts` guarda a régua, com as fontes no arquivo: R$ 81.000 em 2026,
+R$ 110.000 em 2027 e R$ 140.000 em 2028. No ano de abertura o limite é
+proporcional (R$ 6.750 por mês, do mês de abertura até dezembro, fração de
+mês contando como mês inteiro), por isso `perfis.data_abertura_mei` existe.
+Até 20% acima do teto paga-se DAS complementar; acima disso o
+desenquadramento é retroativo a janeiro.
+
+## LGPD
+
+Os direitos do art. 18 são botão, não pedido por e-mail:
+
+- **Portabilidade** — `/api/meus-dados` devolve perfil, clientes, recibos,
+  itens e lançamentos em JSON.
+- **Exclusão** — `excluir_minha_conta()` apaga a conta do próprio titular. A
+  função não recebe parâmetro e só alcança `auth.uid()`: verificado que uma
+  sessão não consegue apagar a conta de outra.
+- **Transparência** — `/privacidade` e `/termos` descrevem o que o sistema
+  realmente faz, incluindo que a imagem da nota é processada por IA de
+  terceiro. Os documentos precisam de revisão de advogado antes de valerem
+  como peça jurídica.
+
+Comprovantes vivem no Storage, fora do alcance do cascade do banco, e são
+removidos pela aplicação antes da exclusão — do contrário virariam arquivos
+órfãos com dado financeiro de conta inexistente.
+
+## Plano e uso justo
+
+`plano` sozinho mentia: com link de pagamento estático não chega evento de
+cancelamento, e quem cancelava seguia Pro para sempre. `plano_expira_em`
+fecha isso, e `planoEfetivo()` (espelhado em `plano_efetivo()` no banco) é a
+única fonte sobre quem está pagando.
+
+O Pro tem teto de uso justo em vez de "ilimitado": cada nota lida custa IA, e
+volume muito acima do padrão de um MEI custaria mais que a mensalidade.
+
 ## Decisões que valem registro
 
 - **Server Actions revalidam a sessão.** O `proxy.ts` protege a navegação,

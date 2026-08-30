@@ -6,6 +6,7 @@ export type Tenant = {
   email: string | null;
   nome_negocio: string;
   plano: "free" | "pro";
+  plano_expira_em: string | null;
   limite_notas_mes: number;
   criado_em: string;
   ultimo_acesso: string | null;
@@ -20,6 +21,7 @@ export type Tenant = {
   bytes_comprovantes: number;
   ultimo_lancamento: string | null;
   notas_ia_no_mes: number;
+  faturamento_ano: number;
 };
 
 export type EventoAuth = {

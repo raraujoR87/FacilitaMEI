@@ -9,6 +9,9 @@ import { BotaoSubmit } from "@/components/ui/botao-submit";
 export type Perfil = {
   nome_negocio: string;
   cnpj: string | null;
+  data_abertura_mei: string | null;
+  municipio: string | null;
+  uf: string | null;
   telefone_whatsapp: string | null;
   chave_pix: string | null;
   tipo_chave_pix: string | null;
@@ -41,6 +44,21 @@ export function FormularioPerfil({ perfil }: { perfil: Perfil }) {
         />
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo nome="cnpj" label="CNPJ" valorInicial={perfil.cnpj} inputMode="numeric" />
+          <Campo
+            nome="data_abertura_mei"
+            label="Abertura do CNPJ"
+            tipo="date"
+            valorInicial={perfil.data_abertura_mei}
+            dica="No ano de abertura o teto do MEI é proporcional aos meses de atividade."
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-[1fr_5rem]">
+          <Campo nome="municipio" label="Município" valorInicial={perfil.municipio} dica="Aparece no recibo e é exigido na NFS-e." />
+          <Campo nome="uf" label="UF" valorInicial={perfil.uf} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
           <Campo
             nome="telefone_whatsapp"
             label="WhatsApp do negócio"

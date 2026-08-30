@@ -4,9 +4,10 @@ import { formatarMoeda, intervaloDoMes, mesAtual, rotuloMes } from "@/lib/format
 import {
   contatoWhatsApp,
   economiaAnual,
+  limiteDeNotas,
   linkAssinatura,
+  planoEfetivo,
   PLANOS,
-  type IdPlano,
 } from "@/lib/planos";
 import { Recibo } from "@/components/ui/campos";
 
@@ -16,7 +17,7 @@ export default async function PlanosPage() {
   const { inicio } = intervaloDoMes(mes);
 
   const [{ data: perfil }, { count }] = await Promise.all([
-    supabase.from("perfis").select("plano, limite_notas_mes").eq("id", user.id).single(),
+    supabase.from("perfis").select("plano, plano_expira_em, limite_notas_mes").eq("id", user.id).single(),
     supabase
       .from("lancamentos")
       .select("id", { count: "exact", head: true })
@@ -25,8 +26,12 @@ export default async function PlanosPage() {
       .gte("created_at", `${inicio}T00:00:00Z`),
   ]);
 
-  const planoAtual: IdPlano = perfil?.plano === "pro" ? "pro" : "free";
-  const limite = perfil?.limite_notas_mes ?? PLANOS.free.limiteNotas ?? 10;
+  const planoAtual = planoEfetivo(perfil);
+  const limite = limiteDeNotas(perfil);
+  // Assinatura vencida: a conta já voltou a se comportar como grátis, e
+  // esconder isso faria o cliente achar que perdeu recurso sem motivo.
+  const venceu =
+    perfil?.plano === "pro" && planoAtual === "free" ? perfil.plano_expira_em : null;
   const usadas = count ?? 0;
   const proporcao = limite > 0 ? Math.min(100, Math.round((usadas / limite) * 100)) : 0;
 
@@ -43,6 +48,13 @@ export default async function PlanosPage() {
         Você está no plano{" "}
         <strong style={{ color: "var(--tinta)" }}>{PLANOS[planoAtual].nome}</strong>.
       </p>
+
+      {venceu && (
+        <p className="aviso aviso-erro mb-6">
+          Sua assinatura Pro venceu em {new Date(venceu).toLocaleDateString("pt-BR")}.
+          A conta voltou ao plano grátis, e nada foi apagado.
+        </p>
+      )}
 
       {planoAtual === "free" && (
         <Recibo className="mb-6">

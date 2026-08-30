@@ -5,7 +5,8 @@ import {
   tempoDesde,
   type Tenant,
 } from "@/lib/admin";
-import { formatarData, formatarDataDoMomento } from "@/lib/formato";
+import { formatarData, formatarDataDoMomento, formatarMoeda } from "@/lib/formato";
+import { situacaoTeto } from "@/lib/mei";
 import { Carimbo, Recibo, Vazio } from "@/components/ui/campos";
 import { AcoesTenant } from "./acoes-tenant";
 
@@ -80,7 +81,7 @@ export default async function AdminTenantsPage() {
                 </div>
               </div>
 
-              <dl className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-2 text-sm">
+              <dl className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2 text-sm">
                 <Metrica rotulo="Lançamentos" valor={t.total_lancamentos} />
                 <Metrica rotulo="Documentos" valor={t.total_documentos} />
                 <Metrica rotulo="Clientes" valor={t.total_clientes} />
@@ -92,6 +93,18 @@ export default async function AdminTenantsPage() {
                 <Metrica
                   rotulo="Comprovantes"
                   valor={`${t.total_comprovantes} · ${formatarTamanho(Number(t.bytes_comprovantes))}`}
+                />
+                <Metrica
+                  rotulo="Teto do MEI"
+                  valor={`${situacaoTeto(Number(t.faturamento_ano), new Date().getUTCFullYear()).percentual}%`}
+                  alerta={
+                    situacaoTeto(Number(t.faturamento_ano), new Date().getUTCFullYear()).faixa !==
+                    "tranquilo"
+                  }
+                />
+                <Metrica
+                  rotulo="Faturou no ano"
+                  valor={formatarMoeda(Number(t.faturamento_ano))}
                 />
                 <Metrica
                   rotulo="Configurou"

@@ -7,6 +7,15 @@
 
 export const LIMITE_NOTAS_FREE = 10;
 
+/**
+ * Teto de uso justo do Pro.
+ *
+ * "Ilimitado" era custo variável sem freio: cada nota lida custa IA, e um
+ * volume muito acima do padrão de um MEI custaria mais do que a mensalidade.
+ * O número é folgado de propósito — um MEI real não chega perto.
+ */
+export const LIMITE_NOTAS_PRO = 300;
+
 export type IdPlano = "free" | "pro";
 
 export type Plano = {
@@ -51,6 +60,32 @@ export const PLANOS: Record<IdPlano, Plano> = {
     ],
   },
 };
+
+export type PerfilPlano = {
+  plano: string | null;
+  plano_expira_em: string | null;
+  limite_notas_mes?: number | null;
+};
+
+/**
+ * Plano que de fato vale agora.
+ *
+ * `plano` sozinho mente depois do cancelamento: com link de pagamento
+ * estático não chega evento de cancelamento, e a coluna ficaria em "pro"
+ * para sempre. Espelha `plano_efetivo()` no banco.
+ */
+export function planoEfetivo(perfil: PerfilPlano | null | undefined): IdPlano {
+  if (!perfil || perfil.plano !== "pro") return "free";
+  if (!perfil.plano_expira_em) return "pro";
+  return new Date(perfil.plano_expira_em) > new Date() ? "pro" : "free";
+}
+
+/** Quantas notas por foto a conta pode ler no mês. */
+export function limiteDeNotas(perfil: PerfilPlano | null | undefined): number {
+  const explicito = perfil?.limite_notas_mes;
+  if (typeof explicito === "number" && explicito > 0) return explicito;
+  return planoEfetivo(perfil) === "pro" ? LIMITE_NOTAS_PRO : LIMITE_NOTAS_FREE;
+}
 
 /** Quanto o anual economiza no ano, em reais. */
 export function economiaAnual(): number {

@@ -1,5 +1,6 @@
 import { exigirUsuario } from "@/lib/auth";
 import { FormularioPerfil, type Perfil } from "./formulario";
+import { SeusDados } from "./seus-dados";
 
 export default async function ConfiguracoesPage() {
   const { supabase, user } = await exigirUsuario();
@@ -7,7 +8,7 @@ export default async function ConfiguracoesPage() {
   const { data: perfil } = await supabase
     .from("perfis")
     .select(
-      "nome_negocio, cnpj, telefone_whatsapp, chave_pix, tipo_chave_pix, nome_titular_pix, cidade_pix"
+      "nome_negocio, cnpj, data_abertura_mei, municipio, uf, telefone_whatsapp, chave_pix, tipo_chave_pix, nome_titular_pix, cidade_pix"
     )
     .eq("id", user.id)
     .single();
@@ -23,6 +24,9 @@ export default async function ConfiguracoesPage() {
           (perfil as Perfil) ?? {
             nome_negocio: "",
             cnpj: null,
+            data_abertura_mei: null,
+            municipio: null,
+            uf: null,
             telefone_whatsapp: null,
             chave_pix: null,
             tipo_chave_pix: null,
@@ -31,6 +35,10 @@ export default async function ConfiguracoesPage() {
           }
         }
       />
+
+      <div className="mt-8">
+        <SeusDados />
+      </div>
     </div>
   );
 }

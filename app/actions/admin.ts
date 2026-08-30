@@ -69,12 +69,17 @@ export async function definirPlano(
     return { erro: "Limite de notas inválido." };
   }
 
-  // A função do banco refaz a checagem de administrador e só toca em plano e
-  // limite — chave PIX e telefone do cliente ficam fora do alcance.
+  // Sem validade, o Pro fica eterno: com link de pagamento estático não
+  // chega evento de cancelamento, e a conta continuaria paga para sempre.
+  const validade = lerTexto(formData, "plano_expira_em");
+
+  // A função do banco refaz a checagem de administrador e só toca em plano,
+  // limite e validade — chave PIX e telefone do cliente ficam fora do alcance.
   const { error } = await supabase.rpc("admin_definir_plano", {
     alvo,
     novo_plano: plano,
     novo_limite: limite,
+    expira_em: plano === "pro" && validade ? `${validade}T23:59:59Z` : null,
   });
 
   if (error) return { erro: `Não foi possível salvar: ${error.message}` };
