@@ -18,7 +18,7 @@ import { Formularios } from "./formularios";
 import { EditarSaida } from "./editar-saida";
 import { ContasFixas } from "./contas-fixas";
 import type { ContaFixa } from "@/lib/recorrentes";
-import { ehNaturezaSaida, type NaturezaSaida } from "@/lib/lancamentos";
+import { ehNaturezaSaida, SAIDA, type NaturezaSaida } from "@/lib/lancamentos";
 
 type Um<T> = T | T[] | null;
 function um<T>(v: Um<T>): T | null {
@@ -35,6 +35,7 @@ type Linha = {
   origem: string;
   categoria_id: string | null;
   custo_de_documento_id: string | null;
+  natureza_saida: string | null;
   categorias: Um<{ nome: string }>;
   documentos_venda: Um<{
     id: string;
@@ -49,7 +50,8 @@ const FILTROS = [
   { id: "tudo", rotulo: "Tudo" },
   { id: "servico", rotulo: "Serviços" },
   { id: "produto", rotulo: "Produtos" },
-  { id: "saida", rotulo: "Saídas" },
+  { id: "saida", rotulo: "Custos" },
+  { id: "retirada", rotulo: "Retiradas" },
   // Receitas lançadas antes de toda entrada passar a gerar recibo. Sem este
   // filtro elas só apareceriam em "Tudo" e ficariam invisíveis na prática.
   { id: "sem-recibo", rotulo: "Sem recibo" },
@@ -88,7 +90,7 @@ export default async function MovimentoPage({
     supabase
       .from("lancamentos")
       .select(
-        "id, descricao, valor, tipo, data_competencia, fornecedor_cliente, origem, categoria_id, custo_de_documento_id, categorias(nome), documentos_venda!lancamentos_documento_venda_id_fkey(id, numero, natureza, nf_numero, clientes(nome, documento))"
+        "id, descricao, valor, tipo, natureza_saida, data_competencia, fornecedor_cliente, origem, categoria_id, custo_de_documento_id, categorias(nome), documentos_venda!lancamentos_documento_venda_id_fkey(id, numero, natureza, nf_numero, clientes(nome, documento))"
       )
       .eq("user_id", user.id)
       .gte("data_competencia", inicio)
@@ -138,7 +140,10 @@ export default async function MovimentoPage({
 
   const lista = todos.filter((l) => {
     if (filtro === "tudo") return true;
-    if (filtro === "saida") return l.tipo === "despesa";
+    if (filtro === "saida")
+      return l.tipo === "despesa" && l.natureza_saida === "custo";
+    if (filtro === "retirada")
+      return l.tipo === "despesa" && l.natureza_saida === "retirada";
     if (filtro === "sem-recibo") return semRecibo.includes(l);
     return l.tipo === "receita" && naturezaDe(l) === filtro;
   });
@@ -147,7 +152,12 @@ export default async function MovimentoPage({
   const servicos = somar(todos.filter((l) => naturezaDe(l) === "servico"));
   const produtos = somar(todos.filter((l) => naturezaDe(l) === "produto"));
   const receitas = somar(todos.filter((l) => l.tipo === "receita"));
-  const saidas = somar(todos.filter((l) => l.tipo === "despesa"));
+  const saidas = somar(
+    todos.filter((l) => l.tipo === "despesa" && l.natureza_saida !== "retirada")
+  );
+  const retiradas = somar(
+    todos.filter((l) => l.natureza_saida === "retirada")
+  );
   const outrasEntradas = somar(semRecibo);
 
   // Entradas que exigem nota e ainda não têm número registrado.
@@ -198,11 +208,17 @@ export default async function MovimentoPage({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         <Resumo rotulo="Serviços" valor={servicos} cor="var(--positivo)" Icone={Briefcase} />
         <Resumo rotulo="Produtos" valor={produtos} cor="var(--positivo)" Icone={Package} />
-        <Resumo rotulo="Saídas" valor={saidas} cor="var(--selo)" />
+        <Resumo rotulo="Saídas do negócio" valor={saidas} cor="var(--selo)" />
         <Resumo
-          rotulo="Saldo"
-          valor={receitas - saidas}
-          cor={receitas - saidas >= 0 ? "var(--tinta)" : "var(--selo)"}
+          rotulo={retiradas > 0 ? "Você tirou" : "Saldo"}
+          valor={retiradas > 0 ? retiradas : receitas - saidas}
+          cor={
+            retiradas > 0
+              ? "var(--tinta-suave)"
+              : receitas - saidas >= 0
+              ? "var(--tinta)"
+              : "var(--selo)"
+          }
         />
       </div>
 
@@ -294,6 +310,12 @@ function ItemMovimento({
           {linha.fornecedor_cliente && ` · ${linha.fornecedor_cliente}`}
           {linha.origem === "ocr" && " · lido da nota"}
           {receita && !doc && " · sem recibo"}
+          {/* Retirada e imposto precisam se distinguir de custo no extrato:
+              somados visualmente, a pessoa acha que gastou mais no negócio
+              do que gastou. */}
+          {linha.natureza_saida && linha.natureza_saida !== "custo" && (
+            <> · {SAIDA[linha.natureza_saida as NaturezaSaida].rotulo}</>
+          )}
         </p>
 
         {custoDe && (
@@ -338,6 +360,7 @@ function ItemMovimento({
                 fornecedor_cliente: linha.fornecedor_cliente,
                 categoria_id: linha.categoria_id,
                 custo_de_documento_id: linha.custo_de_documento_id,
+                natureza_saida: linha.natureza_saida,
               }}
               categorias={categorias}
               trabalhos={trabalhos}

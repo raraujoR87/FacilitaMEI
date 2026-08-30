@@ -8,12 +8,14 @@ import {
 } from "@/lib/formato";
 import { Recibo, Vazio } from "@/components/ui/campos";
 import { SeletorMes } from "@/components/ui/seletor-mes";
+import { repartirSaidas } from "@/lib/caixa";
 import { BotaoImprimir } from "./botao-imprimir";
 
 type Linha = {
   descricao: string;
   valor: number;
   tipo: "receita" | "despesa";
+  natureza_saida: string | null;
   data_competencia: string;
   fornecedor_cliente: string | null;
   categorias: { nome: string } | { nome: string }[] | null;
@@ -37,7 +39,7 @@ export default async function RelatorioPage({
     supabase
       .from("lancamentos")
       .select(
-        "descricao, valor, tipo, data_competencia, fornecedor_cliente, categorias(nome)"
+        "descricao, valor, tipo, natureza_saida, data_competencia, fornecedor_cliente, categorias(nome)"
       )
       .eq("user_id", user.id)
       .gte("data_competencia", inicio)
@@ -48,10 +50,15 @@ export default async function RelatorioPage({
 
   const lista = (lancamentos ?? []) as Linha[];
   const receitas = lista.filter((l) => l.tipo === "receita");
-  const despesas = lista.filter((l) => l.tipo === "despesa");
   const somar = (ls: Linha[]) => ls.reduce((s, l) => s + Number(l.valor), 0);
   const totalReceitas = somar(receitas);
-  const totalDespesas = somar(despesas);
+
+  // Retirada não é despesa do negócio: é o lucro indo para o bolso do
+  // dono. Somada junto, o resultado do mês saía menor do que foi de
+  // verdade — e era exatamente o numero que o contador ia ler. O imposto
+  // fica separado pelo mesmo motivo: não é custo de operação.
+  const { custos, retiradas, impostos } = repartirSaidas(lista);
+  const resultado = totalReceitas - custos - impostos;
 
   // Agrupamento por categoria: é o recorte que o contador pede primeiro.
   const porCategoria = new Map<string, { receita: number; despesa: number }>();
@@ -96,29 +103,28 @@ export default async function RelatorioPage({
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>Entradas</p>
-            <p className="valor text-lg" style={{ color: "var(--positivo)" }}>
-              {formatarMoeda(totalReceitas)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>Saídas</p>
-            <p className="valor text-lg" style={{ color: "var(--selo)" }}>
-              {formatarMoeda(totalDespesas)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>Saldo</p>
-            <p
-              className="valor text-lg font-semibold"
-              style={{ color: totalReceitas - totalDespesas >= 0 ? "var(--positivo)" : "var(--selo)" }}
-            >
-              {formatarMoeda(totalReceitas - totalDespesas)}
-            </p>
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+          <Total rotulo="Entradas" valor={totalReceitas} cor="var(--positivo)" />
+          <Total rotulo="Custos do negócio" valor={custos} cor="var(--selo)" />
+          <Total rotulo="Imposto" valor={impostos} cor="var(--pendente)" />
+          <Total
+            rotulo="Resultado"
+            valor={resultado}
+            cor={resultado >= 0 ? "var(--positivo)" : "var(--selo)"}
+            destaque
+          />
         </div>
+
+        {retiradas > 0 && (
+          <p
+            className="dica text-center mt-4 pt-4 border-t"
+            style={{ borderColor: "var(--borda)" }}
+          >
+            Fora disso, você retirou {formatarMoeda(retiradas)} para uso
+            pessoal. Retirada não é despesa do negócio — é o resultado acima
+            indo para o seu bolso, e por isso não entra na conta.
+          </p>
+        )}
       </Recibo>
 
       {porCategoria.size > 0 && (
@@ -173,6 +179,32 @@ export default async function RelatorioPage({
           </div>
         )}
       </Recibo>
+    </div>
+  );
+}
+
+function Total({
+  rotulo,
+  valor,
+  cor,
+  destaque,
+}: {
+  rotulo: string;
+  valor: number;
+  cor: string;
+  destaque?: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
+        {rotulo}
+      </p>
+      <p
+        className="valor text-lg"
+        style={{ color: cor, fontWeight: destaque ? 600 : 400 }}
+      >
+        {formatarMoeda(valor)}
+      </p>
     </div>
   );
 }

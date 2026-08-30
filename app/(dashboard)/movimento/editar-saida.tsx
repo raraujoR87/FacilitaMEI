@@ -16,6 +16,7 @@ export type SaidaEditavel = {
   fornecedor_cliente: string | null;
   categoria_id: string | null;
   custo_de_documento_id: string | null;
+  natureza_saida: string | null;
 };
 
 /**
@@ -35,6 +36,11 @@ export function EditarSaida({
 }) {
   const [estado, acao] = useActionState(editarLancamento, ESTADO_INICIAL);
   const [aberto, setAberto] = useState(false);
+
+  // Categoria e vínculo com trabalho só existem no custo do negócio.
+  // Mostrá-los numa retirada seria oferecer um campo que a ação ignora —
+  // e o usuário só descobriria que não colou depois de salvar.
+  const ehCusto = saida.natureza_saida === "custo";
 
   if (estado.sucesso) {
     return (
@@ -69,7 +75,7 @@ export function EditarSaida({
         className="campo"
       />
 
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className={`grid gap-2 ${ehCusto ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <CampoValor centavosIniciais={Math.round(Number(saida.valor) * 100)} />
         <div>
           <label className="rotulo text-xs">Data</label>
@@ -80,17 +86,19 @@ export function EditarSaida({
             className="campo"
           />
         </div>
-        <div>
-          <label className="rotulo text-xs">Categoria</label>
-          <select name="categoria_id" defaultValue={saida.categoria_id ?? ""} className="campo">
-            <option value="">Sem categoria</option>
-            {categorias.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </select>
-        </div>
+        {ehCusto && (
+          <div>
+            <label className="rotulo text-xs">Categoria</label>
+            <select name="categoria_id" defaultValue={saida.categoria_id ?? ""} className="campo">
+              <option value="">Sem categoria</option>
+              {categorias.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <input
@@ -101,7 +109,7 @@ export function EditarSaida({
         className="campo"
       />
 
-      {trabalhos.length > 0 && (
+      {ehCusto && trabalhos.length > 0 && (
         <div>
           <label className="rotulo text-xs">Foi custo de qual trabalho?</label>
           <select

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { formatarData, intervaloDoMes } from "@/lib/formato";
+import { repartirSaidas } from "@/lib/caixa";
 
 type Linha = {
   descricao: string;
   valor: number;
   tipo: "receita" | "despesa";
+  natureza_saida: string | null;
   data_competencia: string;
   fornecedor_cliente: string | null;
   categorias: { nome: string } | { nome: string }[] | null;
@@ -37,7 +39,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase
     .from("lancamentos")
     .select(
-      "descricao, valor, tipo, data_competencia, fornecedor_cliente, categorias(nome)"
+      "descricao, valor, tipo, natureza_saida, data_competencia, fornecedor_cliente, categorias(nome)"
     )
     .eq("user_id", user.id)
     .gte("data_competencia", inicio)
@@ -55,17 +57,26 @@ export async function GET(request: NextRequest) {
       .reduce((soma, l) => soma + Number(l.valor), 0);
 
   const totalReceitas = somar("receita");
-  const totalDespesas = somar("despesa");
+
+  // Retirada não é despesa do negócio: é o resultado indo para o bolso do
+  // dono. Somada junto, o saldo do mês saía menor do que foi de verdade —
+  // e é este arquivo que vai para o contador.
+  const { custos, retiradas, impostos } = repartirSaidas(lancamentos);
+  const resultado = totalReceitas - custos - impostos;
+
+  const totais = { totalReceitas, custos, impostos, retiradas, resultado };
 
   if (formato === "csv") {
-    return respostaCsv(mes, lancamentos, totalReceitas, totalDespesas);
+    return respostaCsv(mes, lancamentos, totais);
   }
 
   return NextResponse.json({
     periodo: mes,
     total_receitas: totalReceitas,
-    total_despesas: totalDespesas,
-    saldo: totalReceitas - totalDespesas,
+    custos_do_negocio: custos,
+    impostos,
+    retiradas_do_dono: retiradas,
+    resultado,
     lancamentos,
   });
 }
@@ -80,33 +91,56 @@ function celula(valor: string): string {
   return `"${valor.replace(/"/g, '""')}"`;
 }
 
+/** Excel em pt-BR só entende o número como número com vírgula decimal. */
+function moeda(valor: number): string {
+  return valor.toFixed(2).replace(".", ",");
+}
+
+const ROTULO_NATUREZA: Record<string, string> = {
+  custo: "Custo do negócio",
+  retirada: "Retirada do dono",
+  imposto: "Imposto (DAS)",
+};
+
 function respostaCsv(
   mes: string,
   lancamentos: Linha[],
-  totalReceitas: number,
-  totalDespesas: number
+  totais: {
+    totalReceitas: number;
+    custos: number;
+    impostos: number;
+    retiradas: number;
+    resultado: number;
+  }
 ): NextResponse {
   const linhas = [
-    ["Data", "Tipo", "Descrição", "Categoria", "Fornecedor/Cliente", "Valor"],
+    ["Data", "Tipo", "Natureza", "Descrição", "Categoria", "Fornecedor/Cliente", "Valor"],
     ...lancamentos.map((l) => [
       formatarData(l.data_competencia),
       l.tipo === "receita" ? "Entrada" : "Saída",
+      // A coluna que o contador precisa para não somar retirada como
+      // despesa dedutível.
+      l.natureza_saida ? ROTULO_NATUREZA[l.natureza_saida] ?? "" : "",
       l.descricao,
       nomeCategoria(l.categorias),
       l.fornecedor_cliente ?? "",
-      // Excel em pt-BR só entende o número como número com vírgula decimal.
-      Number(l.valor).toFixed(2).replace(".", ","),
+      moeda(Number(l.valor)),
     ]),
     [],
-    ["", "", "Total de entradas", "", "", totalReceitas.toFixed(2).replace(".", ",")],
-    ["", "", "Total de saídas", "", "", totalDespesas.toFixed(2).replace(".", ",")],
+    ["", "", "", "Total de entradas", "", "", moeda(totais.totalReceitas)],
+    ["", "", "", "Custos do negócio", "", "", moeda(totais.custos)],
+    ["", "", "", "Imposto (DAS)", "", "", moeda(totais.impostos)],
+    ["", "", "", "Resultado do mês", "", "", moeda(totais.resultado)],
+    [],
+    ["", "", "", "Retirada do dono", "", "", moeda(totais.retiradas)],
     [
       "",
       "",
-      "Saldo",
+      "",
+      "(retirada não é despesa do negócio: é o resultado acima indo para o dono)",
       "",
       "",
-      (totalReceitas - totalDespesas).toFixed(2).replace(".", ","),
+      "",
     ],
   ];
 
