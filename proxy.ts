@@ -34,6 +34,8 @@ export async function proxy(request: NextRequest) {
   const ROTAS_PROTEGIDAS = [
     "/dashboard",
     "/financeiro",
+    "/movimento",
+    "/nota-fiscal",
     "/vendas",
     "/cobranca",
     "/clientes",

@@ -28,9 +28,9 @@ type Item = { href: string; label: string; curto: string; Icone: LucideIcon };
  */
 export const ITENS_PRINCIPAIS: Item[] = [
   { href: "/dashboard", label: "Visão geral", curto: "Início", Icone: LayoutDashboard },
-  { href: "/financeiro", label: "Financeiro", curto: "Financeiro", Icone: Wallet },
-  { href: "/vendas", label: "Vendas", curto: "Vendas", Icone: Receipt },
-  { href: "/cobranca", label: "Cobrança", curto: "Cobrança", Icone: HandCoins },
+  { href: "/movimento", label: "Movimento", curto: "Movimento", Icone: Wallet },
+  { href: "/cobranca", label: "A receber", curto: "Receber", Icone: HandCoins },
+  { href: "/nota-fiscal", label: "Nota fiscal", curto: "Notas", Icone: Receipt },
 ];
 
 export const ITENS_SECUNDARIOS: Item[] = [

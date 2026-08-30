@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { exigirUsuario } from "@/lib/auth";
 import { type EstadoForm, lerOpcional, lerTexto } from "@/app/actions/tipos";
+import { apenasDigitos, documentoValido } from "@/lib/fiscal";
 
 export async function criarCliente(
   _anterior: EstadoForm,
@@ -13,9 +14,17 @@ export async function criarCliente(
   const nome = lerTexto(formData, "nome");
   if (!nome) return { erro: "O nome do cliente é obrigatório." };
 
+  // O documento decide se a venda para esse cliente exige nota fiscal;
+  // errado, o aviso fiscal fica errado junto. Melhor recusar na entrada.
+  const documento = apenasDigitos(lerTexto(formData, "documento"));
+  if (documento && !documentoValido(documento)) {
+    return { erro: "CPF ou CNPJ inválido. Confira os números." };
+  }
+
   const { error } = await supabase.from("clientes").insert({
     user_id: user.id,
     nome,
+    documento: documento || null,
     telefone: lerOpcional(formData, "telefone"),
     email: lerOpcional(formData, "email"),
     observacoes: lerOpcional(formData, "observacoes"),
@@ -24,7 +33,7 @@ export async function criarCliente(
   if (error) return { erro: "Não foi possível salvar o cliente." };
 
   revalidatePath("/clientes");
-  revalidatePath("/vendas");
+  revalidatePath("/movimento");
   return { sucesso: `${nome} cadastrado.` };
 }
 
@@ -36,5 +45,5 @@ export async function excluirCliente(formData: FormData): Promise<void> {
   await supabase.from("clientes").delete().eq("id", id).eq("user_id", user.id);
 
   revalidatePath("/clientes");
-  revalidatePath("/vendas");
+  revalidatePath("/movimento");
 }

@@ -72,7 +72,7 @@ export default async function DashboardPage() {
         {lista.length === 0 ? (
           <Vazio>
             Nenhum lançamento este mês.{" "}
-            <Link href="/financeiro" className="underline font-medium">
+            <Link href="/movimento" className="underline font-medium">
               Lançar o primeiro
             </Link>
             .
@@ -100,7 +100,7 @@ export default async function DashboardPage() {
             </div>
             {lista.length > 8 && (
               <Link
-                href="/financeiro"
+                href="/movimento"
                 className="text-sm underline mt-4 inline-block"
                 style={{ color: "var(--tinta-suave)" }}
               >

@@ -7,10 +7,11 @@ automaticamente via IA.
 
 ## Módulos
 
-- **Financeiro** — lançamento manual em poucos segundos ou por foto da nota,
-  com categorização automática. Filtro por mês e saldo do período.
-- **Vendas** — emissão de recibos e orçamentos numerados, vinculados a
-  clientes e com data de vencimento.
+- **Movimento** — entrada e saída de dinheiro no mesmo lugar, separadas por
+  tipo: serviço prestado, produto vendido e saída. Filtro por mês, resumo por
+  natureza e leitura de nota por foto.
+- **Nota fiscal** — quais entradas exigem nota, onde emitir e registro do
+  número depois de emitida.
 - **Cobrança** — pendências ordenadas por vencimento, com código PIX
   copia-e-cola gerado na hora e link de cobrança pelo WhatsApp. Dar baixa
   numa cobrança lança a receita no financeiro automaticamente.
@@ -69,8 +70,8 @@ npm run lint    # eslint
 app/
   (auth)/login, /cadastro       — autenticação
   (dashboard)/dashboard         — resumo do mês e pendências
-  (dashboard)/financeiro        — lançamentos manuais + leitura de notas
-  (dashboard)/vendas            — recibos e orçamentos
+  (dashboard)/movimento         — entradas e saídas, separadas por natureza
+  (dashboard)/nota-fiscal       — obrigatoriedade, onde emitir e registro
   (dashboard)/cobranca          — pendências, PIX e cobrança por WhatsApp
   (dashboard)/clientes          — cadastro de clientes
   (dashboard)/relatorio         — consolidação mensal, impressão e planilha
@@ -82,6 +83,7 @@ app/
   api/relatorios/gerar          — dados do mês em JSON ou CSV
 components/ui/                  — campos, botões e blocos de recibo
 lib/
+  fiscal.ts                     — obrigatoriedade de NF, CPF/CNPJ, prazos
   formato.ts                    — moeda, datas e competência em pt-BR
   pix.ts                        — geração de BR Code (EMV) com CRC16
   whatsapp.ts                   — link wa.me com mensagem pronta
@@ -167,6 +169,40 @@ O acesso principal é pelo telefone, então a navegação muda de forma:
 
 Os itens menos frequentes (Clientes, Relatório, Plano, Configurações, Sair)
 ficam na gaveta "Mais", que abre de baixo para cima.
+
+## Uma entrada, um recibo
+
+Havia dois caminhos para registrar o mesmo dinheiro — lançamento de receita no
+financeiro, ou recibo em vendas — e quem escolhia o primeiro ficava sem
+documento para dar ao cliente. Agora existe um caminho só: **toda entrada gera
+um recibo numerado**, e o lançamento financeiro é consequência dele. Saída
+continua sendo lançamento simples, porque despesa é nota de terceiro, não
+documento que você emite.
+
+Quem é MEI presta serviço **e** vende produto, e as duas naturezas têm regras
+fiscais diferentes: serviço gera NFS-e (municipal/nacional), produto gera NF-e
+(estadual). Por isso `documentos_venda.natureza` existe — sem ela o app não
+teria como dizer qual nota a pessoa precisa emitir.
+
+## Nota fiscal
+
+O AgilizeMei **não emite** nota: emissão é ato do contribuinte, feito no
+Emissor Nacional (serviço) ou na SEFAZ estadual (produto). O que o app faz é
+dizer, para cada entrada, se a nota é obrigatória — e guardar o número depois
+que ela sai, para o relatório do contador bater com o que o governo recebeu.
+
+A regra está em `lib/fiscal.ts`, com as fontes registradas no próprio arquivo:
+
+- **Cliente CNPJ** → nota obrigatória (LC 123/2006, Resolução CGSN 140/2018)
+- **Cliente CPF** → dispensado
+- **Sem documento cadastrado** → o app diz que não sabe, em vez de liberar
+
+A partir de **1º/11/2026**, NFS-e do Simples Nacional só pelo Emissor Nacional
+(Resolução CGSN nº 191, de 04/08/2026, que adiou a data original de 1º/09).
+A tela mostra a contagem regressiva.
+
+Regra fiscal muda. Estas datas precisam ser revisadas com um contador antes de
+cada temporada de mudança — o código diz isso no lugar onde importa.
 
 ## Decisões que valem registro
 

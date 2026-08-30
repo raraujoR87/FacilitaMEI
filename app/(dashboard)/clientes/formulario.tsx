@@ -16,6 +16,12 @@ export function FormularioCliente() {
       className="fita-recibo px-6 py-6 mb-8 flex flex-col gap-4"
     >
       <Campo nome="nome" label="Nome" obrigatorio />
+      <Campo
+        nome="documento"
+        label="CPF ou CNPJ"
+        inputMode="numeric"
+        dica="É o que decide se a venda para este cliente exige nota fiscal."
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo nome="telefone" label="Telefone" tipo="tel" inputMode="tel" />
         <Campo nome="email" label="E-mail" tipo="email" inputMode="email" />

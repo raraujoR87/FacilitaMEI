@@ -1,6 +1,7 @@
 import { exigirUsuario } from "@/lib/auth";
 import { excluirCliente } from "@/app/actions/clientes";
 import { formatarMoeda } from "@/lib/formato";
+import { formatarDocumento, tipoPessoa } from "@/lib/fiscal";
 import { Recibo, Vazio } from "@/components/ui/campos";
 import { BotaoSubmit } from "@/components/ui/botao-submit";
 import { FormularioCliente } from "./formulario";
@@ -8,6 +9,7 @@ import { FormularioCliente } from "./formulario";
 type Cliente = {
   id: string;
   nome: string;
+  documento: string | null;
   telefone: string | null;
   email: string | null;
   observacoes: string | null;
@@ -19,7 +21,7 @@ export default async function ClientesPage() {
   const [{ data: clientes }, { data: documentos }] = await Promise.all([
     supabase
       .from("clientes")
-      .select("id, nome, telefone, email, observacoes")
+      .select("id, nome, documento, telefone, email, observacoes")
       .eq("user_id", user.id)
       .order("nome"),
     supabase
@@ -63,7 +65,16 @@ export default async function ClientesPage() {
                 <div className="min-w-0">
                   <p className="font-medium truncate">{c.nome}</p>
                   <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
-                    {[c.telefone, c.email, c.observacoes].filter(Boolean).join(" · ") || "—"}
+                    {[
+                      c.documento
+                        ? `${formatarDocumento(c.documento)} · ${tipoPessoa(c.documento) === "juridica" ? "empresa" : "pessoa física"}`
+                        : "sem CPF/CNPJ",
+                      c.telefone,
+                      c.email,
+                      c.observacoes,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
