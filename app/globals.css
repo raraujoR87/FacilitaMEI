@@ -1,0 +1,81 @@
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap");
+@import "tailwindcss";
+
+:root {
+  /* FacilitaMEI — identidade "recibo de papel" */
+  --papel: #f7f5f0;
+  --papel-escuro: #ece8de;
+  --tinta: #1a1a1a;
+  --tinta-suave: #59564e;
+  --selo: #c23b22;
+  --positivo: #2f6e5b;
+  --pendente: #d9a441;
+  --borda: #d8d3c6;
+
+  --background: var(--papel);
+  --foreground: var(--tinta);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-papel: var(--papel);
+  --color-papel-escuro: var(--papel-escuro);
+  --color-tinta: var(--tinta);
+  --color-tinta-suave: var(--tinta-suave);
+  --color-selo: var(--selo);
+  --color-positivo: var(--positivo);
+  --color-pendente: var(--pendente);
+  --color-borda: var(--borda);
+  --font-display: "Archivo", sans-serif;
+  --font-mono-valor: "IBM Plex Mono", monospace;
+  --font-sans: "Inter", sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Assinatura visual: fita de recibo com bordas serrilhadas */
+.fita-recibo {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid var(--borda);
+  box-shadow: 0 1px 0 var(--borda), 0 2px 8px rgba(26, 26, 26, 0.06);
+}
+
+.fita-recibo::before,
+.fita-recibo::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background-image: radial-gradient(circle, var(--papel) 4px, transparent 4.5px);
+  background-size: 16px 16px;
+  background-position: -4px center;
+}
+
+.fita-recibo::before {
+  top: -5px;
+}
+
+.fita-recibo::after {
+  bottom: -5px;
+}
+
+/* Carimbo (PAGO / PENDENTE) */
+.carimbo {
+  display: inline-block;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  padding: 2px 10px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transform: rotate(-4deg);
+}
