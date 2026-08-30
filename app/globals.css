@@ -233,3 +233,9 @@ body {
     display: none;
   }
 }
+
+/* `capitalize` do Tailwind maiusculiza cada palavra ("Agosto De 2026").
+   Nomes de mês em pt-BR levam maiúscula só na primeira letra. */
+.primeira-maiuscula::first-letter {
+  text-transform: uppercase;
+}

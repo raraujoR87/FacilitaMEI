@@ -47,7 +47,7 @@ export default async function DashboardPage() {
       <h1 className="text-2xl" style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}>
         Visão geral
       </h1>
-      <p className="text-sm mb-6 capitalize" style={{ color: "var(--tinta-suave)" }}>
+      <p className="text-sm mb-6 primeira-maiuscula" style={{ color: "var(--tinta-suave)" }}>
         {rotuloMes(mes)}
       </p>
 
