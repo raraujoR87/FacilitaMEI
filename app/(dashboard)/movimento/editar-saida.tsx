@@ -15,6 +15,7 @@ export type SaidaEditavel = {
   data_competencia: string;
   fornecedor_cliente: string | null;
   categoria_id: string | null;
+  custo_de_documento_id: string | null;
 };
 
 /**
@@ -26,9 +27,11 @@ export type SaidaEditavel = {
 export function EditarSaida({
   saida,
   categorias,
+  trabalhos,
 }: {
   saida: SaidaEditavel;
   categorias: { id: string; nome: string }[];
+  trabalhos: { id: string; numero: number; descricao_servico: string }[];
 }) {
   const [estado, acao] = useActionState(editarLancamento, ESTADO_INICIAL);
   const [aberto, setAberto] = useState(false);
@@ -97,6 +100,24 @@ export function EditarSaida({
         autoComplete="off"
         className="campo"
       />
+
+      {trabalhos.length > 0 && (
+        <div>
+          <label className="rotulo text-xs">Foi custo de qual trabalho?</label>
+          <select
+            name="custo_de_documento_id"
+            defaultValue={saida.custo_de_documento_id ?? ""}
+            className="campo"
+          >
+            <option value="">Gasto geral do negócio</option>
+            {trabalhos.map((t) => (
+              <option key={t.id} value={t.id}>
+                #{t.numero} · {t.descricao_servico}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <Aviso estado={estado} />
 

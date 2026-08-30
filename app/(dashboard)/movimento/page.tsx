@@ -30,6 +30,7 @@ type Linha = {
   fornecedor_cliente: string | null;
   origem: string;
   categoria_id: string | null;
+  custo_de_documento_id: string | null;
   categorias: Um<{ nome: string }>;
   documentos_venda: Um<{
     id: string;
@@ -52,6 +53,8 @@ const FILTROS = [
 
 type Filtro = (typeof FILTROS)[number]["id"];
 
+type Trabalho = { id: string; numero: number; descricao_servico: string };
+
 export default async function MovimentoPage({
   searchParams,
 }: {
@@ -64,32 +67,50 @@ export default async function MovimentoPage({
     (FILTROS.find((f) => f.id === params.filtro)?.id as Filtro) ?? "tudo";
   const { inicio, fim } = intervaloDoMes(mes);
 
-  const [{ data: lancamentos }, { data: clientes }, { data: categorias }] =
-    await Promise.all([
-      supabase
-        .from("lancamentos")
-        .select(
-          "id, descricao, valor, tipo, data_competencia, fornecedor_cliente, origem, categoria_id, categorias(nome), documentos_venda(id, numero, natureza, nf_numero, clientes(nome, documento))"
-        )
-        .eq("user_id", user.id)
-        .gte("data_competencia", inicio)
-        .lte("data_competencia", fim)
-        .order("data_competencia", { ascending: false })
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("clientes")
-        .select("id, nome, documento")
-        .eq("user_id", user.id)
-        .order("nome"),
-      supabase
-        .from("categorias")
-        .select("id, nome, tipo")
-        .eq("user_id", user.id)
-        .eq("tipo", "despesa")
-        .order("nome"),
-    ]);
+  const [
+    { data: lancamentos },
+    { data: clientes },
+    { data: categorias },
+    { data: trabalhos },
+  ] = await Promise.all([
+    supabase
+      .from("lancamentos")
+      .select(
+        "id, descricao, valor, tipo, data_competencia, fornecedor_cliente, origem, categoria_id, custo_de_documento_id, categorias(nome), documentos_venda!lancamentos_documento_venda_id_fkey(id, numero, natureza, nf_numero, clientes(nome, documento))"
+      )
+      .eq("user_id", user.id)
+      .gte("data_competencia", inicio)
+      .lte("data_competencia", fim)
+      .order("data_competencia", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("clientes")
+      .select("id, nome, documento")
+      .eq("user_id", user.id)
+      .order("nome"),
+    supabase
+      .from("categorias")
+      .select("id, nome, tipo")
+      .eq("user_id", user.id)
+      .eq("tipo", "despesa")
+      .order("nome"),
+    // Os trabalhos que podem ter consumido material. Recorta nos 40 mais
+    // recentes: custo de serviço do ano passado ninguém vai lançar hoje, e
+    // um select com a vida inteira do negócio é impossível de usar no
+    // celular.
+    supabase
+      .from("documentos_venda")
+      .select("id, numero, descricao_servico")
+      .eq("user_id", user.id)
+      .eq("tipo", "recibo")
+      .neq("status", "cancelado")
+      .order("data_emissao", { ascending: false })
+      .limit(40),
+  ]);
 
   const todos = (lancamentos ?? []) as Linha[];
+  const listaTrabalhos = (trabalhos ?? []) as Trabalho[];
+  const trabalhoPorId = new Map(listaTrabalhos.map((t) => [t.id, t]));
 
   const naturezaDe = (l: Linha): Natureza | null => um(l.documentos_venda)?.natureza ?? null;
 
@@ -138,7 +159,11 @@ export default async function MovimentoPage({
         </Link>
       )}
 
-      <Formularios clientes={clientes ?? []} categoriasDespesa={categorias ?? []} />
+      <Formularios
+        clientes={clientes ?? []}
+        categoriasDespesa={categorias ?? []}
+        trabalhos={listaTrabalhos}
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         <Resumo rotulo="Serviços" valor={servicos} cor="var(--positivo)" Icone={Briefcase} />
@@ -187,7 +212,17 @@ export default async function MovimentoPage({
         ) : (
           <div className="flex flex-col divide-y" style={{ borderColor: "var(--borda)" }}>
             {lista.map((l) => (
-              <ItemMovimento key={l.id} linha={l} categorias={categorias ?? []} />
+              <ItemMovimento
+                key={l.id}
+                linha={l}
+                categorias={categorias ?? []}
+                trabalhos={listaTrabalhos}
+                custoDe={
+                  l.custo_de_documento_id
+                    ? trabalhoPorId.get(l.custo_de_documento_id) ?? null
+                    : null
+                }
+              />
             ))}
           </div>
         )}
@@ -199,9 +234,13 @@ export default async function MovimentoPage({
 function ItemMovimento({
   linha,
   categorias,
+  trabalhos,
+  custoDe,
 }: {
   linha: Linha;
   categorias: { id: string; nome: string }[];
+  trabalhos: Trabalho[];
+  custoDe: Trabalho | null;
 }) {
   const doc = um(linha.documentos_venda);
   const cliente = doc ? um(doc.clientes) : null;
@@ -226,6 +265,16 @@ function ItemMovimento({
           {linha.origem === "ocr" && " · lido da nota"}
           {receita && !doc && " · sem recibo"}
         </p>
+
+        {custoDe && (
+          <Link
+            href={`/recibo/${custoDe.id}`}
+            className="text-xs underline"
+            style={{ color: "var(--tinta-suave)" }}
+          >
+            custo de #{custoDe.numero} · {custoDe.descricao_servico}
+          </Link>
+        )}
 
         {fiscal?.obrigatoria && (
           <p className="text-xs mt-1" style={{ color: doc?.nf_numero ? "var(--positivo)" : "var(--selo)" }}>
@@ -258,8 +307,10 @@ function ItemMovimento({
                 data_competencia: linha.data_competencia,
                 fornecedor_cliente: linha.fornecedor_cliente,
                 categoria_id: linha.categoria_id,
+                custo_de_documento_id: linha.custo_de_documento_id,
               }}
               categorias={categorias}
+              trabalhos={trabalhos}
             />
             <form action={excluirLancamento}>
               <input type="hidden" name="id" value={linha.id} />

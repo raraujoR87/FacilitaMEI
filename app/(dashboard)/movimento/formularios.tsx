@@ -14,6 +14,7 @@ import { situacaoFiscal } from "@/lib/fiscal";
 
 export type ClienteOpcao = { id: string; nome: string; documento: string | null };
 export type Categoria = { id: string; nome: string; tipo: string };
+export type TrabalhoOpcao = { id: string; numero: number; descricao_servico: string };
 
 /**
  * Entrada e saída no mesmo lugar, alternadas por aba.
@@ -25,9 +26,11 @@ export type Categoria = { id: string; nome: string; tipo: string };
 export function Formularios({
   clientes,
   categoriasDespesa,
+  trabalhos,
 }: {
   clientes: ClienteOpcao[];
   categoriasDespesa: Categoria[];
+  trabalhos: TrabalhoOpcao[];
 }) {
   const [aba, setAba] = useState<"entrada" | "saida">("entrada");
 
@@ -61,7 +64,7 @@ export function Formularios({
       {aba === "entrada" ? (
         <FormularioEntrada clientes={clientes} />
       ) : (
-        <FormularioSaida categorias={categoriasDespesa} />
+        <FormularioSaida categorias={categoriasDespesa} trabalhos={trabalhos} />
       )}
     </section>
   );
@@ -235,7 +238,13 @@ function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
   );
 }
 
-function FormularioSaida({ categorias }: { categorias: Categoria[] }) {
+function FormularioSaida({
+  categorias,
+  trabalhos,
+}: {
+  categorias: Categoria[];
+  trabalhos: TrabalhoOpcao[];
+}) {
   const [estado, acao] = useActionState(criarLancamento, ESTADO_INICIAL);
 
   return (
@@ -283,12 +292,35 @@ function FormularioSaida({ categorias }: { categorias: Categoria[] }) {
         </div>
       </div>
 
-      <div>
-        <label className="rotulo" htmlFor="fornecedor_cliente">
-          Fornecedor
-          <span className="dica"> (opcional)</span>
-        </label>
-        <input id="fornecedor_cliente" name="fornecedor_cliente" autoComplete="off" className="campo" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="rotulo" htmlFor="fornecedor_cliente">
+            Fornecedor
+            <span className="dica"> (opcional)</span>
+          </label>
+          <input id="fornecedor_cliente" name="fornecedor_cliente" autoComplete="off" className="campo" />
+        </div>
+
+        {/* A pergunta que separa faturamento de lucro. Fica opcional de
+            propósito: gasto de estrutura (aluguel, internet) não é de
+            trabalho nenhum, e obrigar a escolher faria a pessoa chutar. */}
+        {trabalhos.length > 0 && (
+          <div>
+            <label className="rotulo" htmlFor="custo_de_documento_id">
+              Foi custo de qual trabalho?
+              <span className="dica"> (opcional)</span>
+            </label>
+            <select id="custo_de_documento_id" name="custo_de_documento_id" className="campo">
+              <option value="">Gasto geral do negócio</option>
+              {trabalhos.map((t) => (
+                <option key={t.id} value={t.id}>
+                  #{t.numero} · {t.descricao_servico}
+                </option>
+              ))}
+            </select>
+            <p className="dica">Vinculando, o recibo mostra quanto sobrou.</p>
+          </div>
+        )}
       </div>
 
       <Aviso estado={estado} />

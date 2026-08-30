@@ -20,6 +20,9 @@ export type MetricaCliente = {
   dias_desde_ultima: number | null;
   intervalo_medio_dias: number | null;
   pagou_com_atraso: number;
+  /** Despesas ligadas a trabalhos pagos deste cliente. */
+  custo_atribuido: number;
+  lucro: number;
 };
 
 /** Depois de quantos dias sem comprar o cliente merece um telefonema. */
@@ -61,4 +64,28 @@ export function descreverRecorrencia(m: MetricaCliente): string {
   if (d <= 10) return `volta a cada ${d} dias`;
   if (d <= 45) return `volta a cada ${Math.round(d / 7)} semanas`;
   return `volta a cada ${Math.round(d / 30)} meses`;
+}
+
+/**
+ * Quem mais fatura não é necessariamente quem mais dá lucro.
+ *
+ * Essa diferença costuma surpreender, e é justamente o dado que muda um
+ * preço: o cliente grande que consome muito material pode render menos
+ * que o pequeno que só cobra a mão de obra. Só vale mostrar quando há
+ * custo lançado — sem custo, o ranking de lucro seria só uma cópia do de
+ * faturamento com outro nome.
+ */
+export function rankingTemInversao(clientes: MetricaCliente[]): boolean {
+  const comCusto = clientes.filter((c) => Number(c.custo_atribuido) > 0);
+  if (comCusto.length === 0) return false;
+
+  const porFaturamento = [...clientes].sort(
+    (a, b) => Number(b.total_pago) - Number(a.total_pago)
+  );
+  const porLucro = [...clientes].sort((a, b) => Number(b.lucro) - Number(a.lucro));
+
+  return (
+    porFaturamento.length > 1 &&
+    porFaturamento[0].cliente_id !== porLucro[0].cliente_id
+  );
 }

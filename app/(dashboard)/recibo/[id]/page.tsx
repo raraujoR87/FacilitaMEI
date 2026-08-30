@@ -9,6 +9,7 @@ import { BotaoCopiar } from "@/components/ui/botao-copiar";
 import { BotaoImprimir } from "@/app/(dashboard)/relatorio/botao-imprimir";
 import { formatarMomento } from "@/lib/admin";
 import { COLUNAS_PLANO, temRecurso } from "@/lib/planos";
+import { calcularMargem, corDaMargem, faixaDaMargem } from "@/lib/margem";
 import { Compartilhar } from "./compartilhar";
 
 type Item = {
@@ -67,6 +68,15 @@ export default async function ReciboPage({
       .single(),
   ]);
 
+  // Custos atribuídos a este trabalho. Ficam fora do documento impresso de
+  // propósito: quanto o serviço custou é informação do dono, não do cliente.
+  const { data: custos } = await supabase
+    .from("lancamentos")
+    .select("id, descricao, valor, data_competencia")
+    .eq("custo_de_documento_id", id)
+    .eq("user_id", user.id)
+    .order("data_competencia", { ascending: false });
+
   const { data: historico } = await supabase
     .from("alteracoes")
     .select("campo, valor_anterior, valor_novo, alterado_em")
@@ -94,6 +104,11 @@ export default async function ReciboPage({
           identificador: `AMEI${doc.numero}`,
         })
       : null;
+
+  const listaCustos = custos ?? [];
+  const totalCusto = listaCustos.reduce((soma, c) => soma + Number(c.valor), 0);
+  const margem = calcularMargem(Number(doc.valor), totalCusto);
+  const faixa = faixaDaMargem(margem);
 
   const titulo = doc.tipo === "recibo" ? "Recibo" : "Orçamento";
   const editavel = !doc.nf_numero && doc.status !== "cancelado";
@@ -277,6 +292,77 @@ export default async function ReciboPage({
           </div>
         )}
       </article>
+
+      {doc.tipo === "recibo" && doc.status !== "cancelado" && (
+        <section className="mt-6 nao-imprimir">
+          <p
+            className="text-xs uppercase tracking-widest mb-2"
+            style={{ color: "var(--tinta-suave)" }}
+          >
+            Só você vê · esse trabalho deu lucro?
+          </p>
+
+          <div
+            className="rounded-lg border px-5 py-4"
+            style={{ borderColor: "var(--borda)", background: "#fff" }}
+          >
+            {margem.semCustoAtribuido ? (
+              <p className="text-sm" style={{ color: "var(--tinta-suave)" }}>
+                Nenhum custo lançado para este trabalho. Ao registrar uma saída
+                em{" "}
+                <Link href="/movimento" className="underline">
+                  Movimento
+                </Link>
+                , escolha <strong>#{doc.numero}</strong> em &quot;foi custo de
+                qual trabalho?&quot; para ver quanto sobrou.
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+                  <p className="valor text-2xl" style={{ color: corDaMargem(faixa) }}>
+                    {formatarMoeda(margem.lucro)}
+                  </p>
+                  <p className="text-sm" style={{ color: "var(--tinta-suave)" }}>
+                    {formatarMoeda(margem.receita)} cobrado −{" "}
+                    {formatarMoeda(margem.custo)} de custo
+                    {margem.percentual !== null && (
+                      <> · sobra {margem.percentual.toLocaleString("pt-BR")}%</>
+                    )}
+                  </p>
+                </div>
+
+                {faixa === "prejuizo" && (
+                  <p className="dica" style={{ color: "var(--selo)" }}>
+                    Você gastou mais do que cobrou. Vale rever o preço antes de
+                    aceitar outro trabalho parecido.
+                  </p>
+                )}
+                {faixa === "apertada" && (
+                  <p className="dica" style={{ color: "var(--pendente)" }}>
+                    Margem apertada: sobrou menos de um terço do que foi cobrado.
+                  </p>
+                )}
+
+                <ul className="mt-3 pt-3 border-t flex flex-col gap-1 text-sm" style={{ borderColor: "var(--borda)" }}>
+                  {listaCustos.map((c) => (
+                    <li key={c.id} className="flex justify-between gap-3">
+                      <span className="truncate">
+                        {c.descricao}{" "}
+                        <span className="text-xs" style={{ color: "var(--tinta-suave)" }}>
+                          {formatarData(c.data_competencia)}
+                        </span>
+                      </span>
+                      <span className="valor shrink-0" style={{ color: "var(--selo)" }}>
+                        −{formatarMoeda(Number(c.valor))}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </section>
+      )}
 
       <Compartilhar
         id={doc.id}

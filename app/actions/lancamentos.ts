@@ -41,6 +41,9 @@ export async function criarLancamento(
     fornecedor_cliente: lerOpcional(formData, "fornecedor_cliente"),
     origem: "manual",
     pago: formData.get("pago") !== "nao",
+    // Vínculo opcional com o trabalho que gerou o gasto. É o que permite
+    // responder "esse serviço deu lucro?" — sem ele o app só sabe somar.
+    custo_de_documento_id: lerOpcional(formData, "custo_de_documento_id"),
   });
 
   if (error) return { erro: "Não foi possível salvar. Tente de novo." };
@@ -48,6 +51,9 @@ export async function criarLancamento(
   revalidatePath("/movimento");
   revalidatePath("/dashboard");
   revalidatePath("/relatorio");
+  revalidatePath("/clientes");
+  // A margem aparece dentro do recibo; sem isto ela ficaria desatualizada.
+  revalidatePath("/recibo/[id]", "page");
   return { sucesso: "Saída lançada." };
 }
 
@@ -106,6 +112,7 @@ export async function editarLancamento(
       data_competencia: lerTexto(formData, "data_competencia") || hoje(),
       categoria_id: lerOpcional(formData, "categoria_id"),
       fornecedor_cliente: lerOpcional(formData, "fornecedor_cliente"),
+      custo_de_documento_id: lerOpcional(formData, "custo_de_documento_id"),
     })
     .eq("id", id)
     .eq("user_id", user.id);
@@ -115,5 +122,8 @@ export async function editarLancamento(
   revalidatePath("/movimento");
   revalidatePath("/dashboard");
   revalidatePath("/relatorio");
+  revalidatePath("/clientes");
+  // A margem aparece dentro do recibo; sem isto ela ficaria desatualizada.
+  revalidatePath("/recibo/[id]", "page");
   return { sucesso: "Saída atualizada." };
 }

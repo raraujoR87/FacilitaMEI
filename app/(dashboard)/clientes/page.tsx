@@ -7,6 +7,7 @@ import { formatarDocumento, tipoPessoa } from "@/lib/fiscal";
 import { linkWhatsApp } from "@/lib/whatsapp";
 import {
   descreverRecorrencia,
+  rankingTemInversao,
   ROTULO_SITUACAO,
   situacaoDoCliente,
   type MetricaCliente,
@@ -38,6 +39,14 @@ export default async function ClientesPage() {
   const maiores = clientes.filter((c) => Number(c.total_pago) > 0).slice(0, 5);
   const maiorValor = maiores.length > 0 ? Number(maiores[0].total_pago) : 0;
 
+  const custoTotal = clientes.reduce((s, c) => s + Number(c.custo_atribuido), 0);
+  const lucroTotal = faturadoTotal - custoTotal;
+  const temCusto = custoTotal > 0;
+  const inversao = rankingTemInversao(clientes);
+  const campeaoDoLucro = temCusto
+    ? [...clientes].sort((a, b) => Number(b.lucro) - Number(a.lucro))[0]
+    : null;
+
   return (
     <div>
       <h1 className="text-2xl mb-1" style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}>
@@ -51,7 +60,11 @@ export default async function ClientesPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <Cartao rotulo="Já faturado" valor={formatarMoeda(faturadoTotal)} cor="var(--positivo)" />
           <Cartao rotulo="A receber" valor={formatarMoeda(emAberto)} cor="var(--pendente)" />
-          <Cartao rotulo="Ticket médio" valor={formatarMoeda(ticketGeral)} />
+          <Cartao
+            rotulo={temCusto ? "Sobrou (lucro)" : "Ticket médio"}
+            valor={formatarMoeda(temCusto ? lucroTotal : ticketGeral)}
+            cor={temCusto && lucroTotal < 0 ? "var(--selo)" : undefined}
+          />
           <Cartao
             rotulo="Precisam de atenção"
             valor={String(devendo.length + sumidos.length)}
@@ -113,10 +126,39 @@ export default async function ClientesPage() {
                 <p className="dica">
                   {c.documentos} compra{c.documentos > 1 ? "s" : ""} ·{" "}
                   {descreverRecorrencia(c)} · ticket {formatarMoeda(Number(c.ticket_medio))}
+                  {Number(c.custo_atribuido) > 0 && (
+                    <>
+                      {" "}
+                      · sobrou{" "}
+                      <strong
+                        style={{
+                          color: Number(c.lucro) < 0 ? "var(--selo)" : "var(--positivo)",
+                        }}
+                      >
+                        {formatarMoeda(Number(c.lucro))}
+                      </strong>
+                    </>
+                  )}
                 </p>
               </div>
             ))}
           </div>
+
+          {inversao && campeaoDoLucro ? (
+            <p className="dica mt-3 pt-3 border-t" style={{ borderColor: "var(--borda)" }}>
+              Quem mais fatura não é quem mais dá lucro: depois dos custos,{" "}
+              <strong>{campeaoDoLucro.nome}</strong> deixa{" "}
+              {formatarMoeda(Number(campeaoDoLucro.lucro))} — mais que{" "}
+              {maiores[0].nome}.
+            </p>
+          ) : (
+            !temCusto && (
+              <p className="dica mt-3 pt-3 border-t" style={{ borderColor: "var(--borda)" }}>
+                Este ranking é de faturamento. Vincule suas saídas aos trabalhos
+                em Movimento para ver quem realmente dá mais lucro.
+              </p>
+            )
+          )}
         </Recibo>
       )}
 
