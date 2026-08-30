@@ -15,6 +15,7 @@ import { PainelTeto } from "@/components/ui/painel-teto";
 import { PainelCaixa } from "@/components/ui/painel-caixa";
 import { avisoDas, CATEGORIA_DAS, CATEGORIA_RETIRADA, situacaoDoCaixa } from "@/lib/caixa";
 import { situacaoTeto, tetoAplicavel, tetoDoAno } from "@/lib/mei";
+import { resumirFixas, type ContaFixa } from "@/lib/recorrentes";
 
 export default async function DashboardPage() {
   const { supabase, user } = await exigirUsuario();
@@ -55,6 +56,9 @@ export default async function DashboardPage() {
 
   // O mês separado por natureza: custo do negócio, retirada do dono e
   // imposto são coisas diferentes, e somá-las esconde a resposta.
+  const { data: fixas } = await supabase.rpc("contas_fixas_do_mes", { mes: inicio });
+  const fixasALancar = resumirFixas((fixas ?? []) as ContaFixa[]).aLancar;
+
   const { data: doMes } = await supabase
     .from("lancamentos")
     .select("valor, tipo, categorias(nome)")
@@ -140,7 +144,12 @@ export default async function DashboardPage() {
         </Link>
       )}
 
-      <PainelCaixa caixa={caixa} das={avisoDas(hoje(), dasPagoNoMes)} valorDas={perfil?.valor_das ?? null} />
+      <PainelCaixa
+        caixa={caixa}
+        das={avisoDas(hoje(), dasPagoNoMes)}
+        valorDas={perfil?.valor_das ?? null}
+        fixasALancar={fixasALancar}
+      />
 
       <PainelTeto
         situacao={teto}

@@ -22,10 +22,13 @@ export function PainelCaixa({
   caixa,
   das,
   valorDas,
+  fixasALancar,
 }: {
   caixa: SituacaoDoCaixa;
   das: AvisoDas;
   valorDas: number | null;
+  /** Contas fixas do mês ainda não lançadas. */
+  fixasALancar: number;
 }) {
   const [estadoRetirada, acaoRetirada] = useActionState(registrarRetirada, ESTADO_INICIAL);
   const [estadoDas, acaoDas] = useActionState(pagarDas, ESTADO_INICIAL);
@@ -53,6 +56,19 @@ export function PainelCaixa({
           ? "Você gastou mais do que entrou neste mês. Vale segurar retiradas até equilibrar."
           : "Depois de pagar o negócio e separar o imposto do mês."}
       </p>
+
+      {/* O número acima só é honesto se as contas do mês já entraram. Conta
+          fixa é a que mais fica de fora, porque ninguém guarda o boleto da
+          internet — e a diferença aparece justamente no fim do mês. */}
+      {fixasALancar > 0 && (
+        <p className="dica" style={{ color: "var(--pendente)" }}>
+          Faltam {formatarMoeda(fixasALancar)} em contas fixas.{" "}
+          <Link href="/movimento" className="underline">
+            Lançar agora
+          </Link>{" "}
+          para este valor ficar real.
+        </p>
+      )}
 
       {/* A conta aberta: sem ela o número parece mágica, e número mágico
           sobre dinheiro ninguém confia. */}

@@ -5,6 +5,7 @@ import { excluirLancamento } from "@/app/actions/lancamentos";
 import {
   formatarData,
   formatarMoeda,
+  hoje,
   intervaloDoMes,
   mesAtual,
 } from "@/lib/formato";
@@ -15,6 +16,8 @@ import { SeletorMes } from "@/components/ui/seletor-mes";
 import { EnviarNota } from "./enviar-nota";
 import { Formularios } from "./formularios";
 import { EditarSaida } from "./editar-saida";
+import { ContasFixas } from "./contas-fixas";
+import type { ContaFixa } from "@/lib/recorrentes";
 
 type Um<T> = T | T[] | null;
 function um<T>(v: Um<T>): T | null {
@@ -72,6 +75,7 @@ export default async function MovimentoPage({
     { data: clientes },
     { data: categorias },
     { data: trabalhos },
+    { data: fixas },
   ] = await Promise.all([
     supabase
       .from("lancamentos")
@@ -106,11 +110,18 @@ export default async function MovimentoPage({
       .neq("status", "cancelado")
       .order("data_emissao", { ascending: false })
       .limit(40),
+    supabase.rpc("contas_fixas_do_mes", { mes: inicio }),
   ]);
 
   const todos = (lancamentos ?? []) as Linha[];
   const listaTrabalhos = (trabalhos ?? []) as Trabalho[];
   const trabalhoPorId = new Map(listaTrabalhos.map((t) => [t.id, t]));
+  const contasFixas = (fixas ?? []) as ContaFixa[];
+
+  // Lançar no mês que a pessoa está olhando, não sempre hoje: abrir julho
+  // e lançar o aluguel jogaria a despesa em agosto sem aviso.
+  const hojeISO = hoje();
+  const dataPadrao = mes === mesAtual() ? hojeISO : inicio;
 
   const naturezaDe = (l: Linha): Natureza | null => um(l.documentos_venda)?.natureza ?? null;
 
@@ -163,6 +174,14 @@ export default async function MovimentoPage({
         clientes={clientes ?? []}
         categoriasDespesa={categorias ?? []}
         trabalhos={listaTrabalhos}
+      />
+
+      <ContasFixas
+        contas={contasFixas}
+        categorias={categorias ?? []}
+        mes={mes}
+        hojeISO={hojeISO}
+        dataPadrao={dataPadrao}
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">

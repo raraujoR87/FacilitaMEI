@@ -50,6 +50,9 @@ export function mensagemDeLimite(mensagem: string | undefined): string | null {
   if (mensagem.includes("ate 3 itens")) {
     return "O plano grátis detalha até 3 itens por documento. No Pro o orçamento pode ter quantas linhas precisar.";
   }
+  if (mensagem.includes("ate 3 contas fixas")) {
+    return "O plano grátis guarda até 3 contas fixas. No Pro você cadastra aluguel, contador, sistema e o que mais for fixo.";
+  }
   if (mensagem.includes("link publico")) {
     return "O link para o cliente é um recurso do plano Pro.";
   }

@@ -32,6 +32,7 @@ export const DIAS_DE_TESTE = 14;
 export const LIMITES_FREE = {
   clientes: 5,
   itensPorDocumento: 3,
+  contasFixas: 3,
 } as const;
 
 export type IdPlano = "free" | "pro";
@@ -61,7 +62,8 @@ export const PLANOS: Record<IdPlano, Plano> = {
       "Cobrança com PIX copia e cola",
       "Alerta do teto do MEI",
       "Relatório do mês em PDF e planilha",
-      `Até ${LIMITES_FREE.clientes} clientes e ${LIMITES_FREE.itensPorDocumento} itens por documento`,
+      "Contas fixas lembradas todo mês, para lançar num toque",
+      `Até ${LIMITES_FREE.clientes} clientes, ${LIMITES_FREE.itensPorDocumento} itens por documento e ${LIMITES_FREE.contasFixas} contas fixas`,
       `${LIMITE_NOTAS_FREE} despesas lidas por foto no mês`,
     ],
   },
@@ -76,7 +78,7 @@ export const PLANOS: Record<IdPlano, Plano> = {
       "Seu logo e sua cor no recibo",
       "Link do recibo para mandar no WhatsApp, com PIX embutido",
       "Cliente aceita o orçamento pelo link",
-      "Clientes e itens sem limite",
+      "Clientes, itens e contas fixas sem limite",
       "Relatório de qualquer período, não só do mês",
       `Até ${LIMITE_NOTAS_PRO} despesas lidas por foto no mês`,
       "Tudo do plano grátis",
