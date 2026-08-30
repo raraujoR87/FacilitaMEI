@@ -18,6 +18,9 @@ automaticamente via IA.
 - **Relatório** — consolidação mensal por categoria, pronta para imprimir
   em PDF ou baixar em planilha para o contador.
 - **Configurações** — dados do negócio, chave PIX e WhatsApp.
+- **Operação** (`/admin`) — back-office do dono do SaaS: todos os tenants com
+  métricas de uso, linha do tempo de acesso, contas travadas no cadastro,
+  troca de plano e envio de redefinição de senha.
 
 ## Stack
 
@@ -71,6 +74,7 @@ app/
   (dashboard)/clientes          — cadastro de clientes
   (dashboard)/relatorio         — consolidação mensal, impressão e planilha
   (dashboard)/configuracoes     — perfil do negócio e chave PIX
+  (admin)/admin                 — back-office: tenants, eventos, problemas
   actions/                      — Server Actions (toda mutação passa por aqui)
   api/notas/upload              — extração de nota via IA
   api/whatsapp/webhook          — recebimento de mensagens do WhatsApp
@@ -80,6 +84,7 @@ lib/
   formato.ts                    — moeda, datas e competência em pt-BR
   pix.ts                        — geração de BR Code (EMV) com CRC16
   whatsapp.ts                   — link wa.me com mensagem pronta
+  admin.ts                      — guarda e tipos do back-office
   ocr/                          — leitura da nota por visão
     schema.ts                   — contrato Zod compartilhado pelos provedores
     claude.ts, gemini.ts        — implementações
@@ -104,6 +109,34 @@ a promessa central do produto.
 
 Os modelos podem ser sobrescritos por `CLAUDE_MODELO` e `GEMINI_MODELO`, útil
 para trocar de faixa de preço sem mexer no código.
+
+## Back-office de operação
+
+`/admin` é o painel de quem opera o SaaS. Duas restrições moldaram o desenho:
+
+**Nenhuma service role key no app.** Um segredo que ignora RLS dentro do Next
+é ponto único de falha. A fronteira fica no banco: funções `security definer`
+que checam `eh_administrador()` na primeira linha do corpo. A autorização não
+depende do código da tela — um cliente comum chamando
+`/rest/v1/rpc/admin_lista_tenants` recebe "acesso restrito", não dados.
+
+**O operador não vê o conteúdo financeiro dos clientes.** As funções devolvem
+contagens, datas e estado de cadastro; descrição, valor e fornecedor de
+lançamento nunca saem. A RLS das tabelas de conteúdo continua fechada até para
+administradores — verificado: um admin lê zero linhas de `lancamentos`.
+
+Reset de senha envia o link para o e-mail do próprio cliente. O operador
+destrava o acesso sem nunca poder se passar pelo cliente.
+
+Para promover a primeira pessoa (a conta precisa já existir):
+
+```sql
+insert into public.administradores (user_id, observacao)
+select id, 'fundador' from auth.users where email = 'voce@exemplo.com';
+```
+
+Não há caminho pela API para virar administrador: a tabela tem policy só de
+leitura do próprio registro.
 
 ## Decisões que valem registro
 

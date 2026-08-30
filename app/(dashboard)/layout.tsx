@@ -13,13 +13,14 @@ export default async function DashboardLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: perfil } = user
-    ? await supabase
-        .from("perfis")
-        .select("nome_negocio, plano")
-        .eq("id", user.id)
-        .single()
-    : { data: null };
+  const [{ data: perfil }, { data: ehAdministrador }] = await Promise.all([
+    user
+      ? supabase.from("perfis").select("nome_negocio, plano").eq("id", user.id).single()
+      : Promise.resolve({ data: null }),
+    // O link para a operação só existe para quem opera. Não é a proteção da
+    // rota — essa está no banco —, é só não poluir a tela de quem não usa.
+    supabase.rpc("eh_administrador"),
+  ]);
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -49,6 +50,15 @@ export default async function DashboardLayout({
           <p className="text-xs mb-2" style={{ color: "var(--tinta-suave)" }}>
             Plano {perfil?.plano === "pro" ? "Pro" : "grátis"}
           </p>
+          {ehAdministrador && (
+            <Link
+              href="/admin"
+              className="text-xs underline block mb-2"
+              style={{ color: "var(--tinta-suave)" }}
+            >
+              Painel de operação
+            </Link>
+          )}
           <form action={sair}>
             <button type="submit" className="botao botao-discreto px-0">
               Sair

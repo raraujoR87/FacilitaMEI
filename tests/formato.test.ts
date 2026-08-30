@@ -4,6 +4,7 @@ import {
   estaVencido,
   formatarCentavos,
   formatarData,
+  formatarDataDoMomento,
   formatarMoeda,
   hoje,
   intervaloDoMes,
@@ -74,4 +75,13 @@ test("estaVencido compara pela data do Brasil", () => {
   assert.equal(estaVencido("2020-01-01"), true);
   assert.equal(estaVencido("2099-01-01"), false);
   assert.equal(estaVencido(hoje()), false, "vence no fim do dia, não durante");
+});
+
+test("formatarDataDoMomento converte o instante para o dia no Brasil", () => {
+  // 30/08 às 00:30 UTC ainda é 29/08 às 21:30 em São Paulo. Fatiar a string
+  // ISO daria 30/08 e envelheceria o cadastro em um dia.
+  assert.equal(formatarDataDoMomento("2026-08-30T00:30:00Z"), "29/08/2026");
+  assert.equal(formatarDataDoMomento("2026-08-30T12:00:00Z"), "30/08/2026");
+  // Virada de ano: 01/01 às 02:00 UTC é 31/12 no Brasil.
+  assert.equal(formatarDataDoMomento("2027-01-01T02:00:00Z"), "31/12/2026");
 });

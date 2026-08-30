@@ -21,6 +21,22 @@ export function formatarData(data: string): string {
   return `${dia}/${mes}/${ano}`;
 }
 
+/**
+ * Data de um instante (`timestamptz`) no fuso do Brasil.
+ *
+ * Diferente de `formatarData`, que recebe uma coluna `date` já sem fuso.
+ * Fatiar a string ISO de um timestamptz devolveria a data em UTC: um
+ * cadastro feito às 21h de 29/08 em São Paulo apareceria como 30/08.
+ */
+export function formatarDataDoMomento(iso: string): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO_BR,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(iso));
+}
+
 /** Data de hoje no fuso do Brasil — o servidor da Vercel roda em UTC. */
 export function hoje(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: FUSO_BR }).format(

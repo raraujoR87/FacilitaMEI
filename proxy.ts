@@ -39,6 +39,9 @@ export async function proxy(request: NextRequest) {
     "/clientes",
     "/relatorio",
     "/configuracoes",
+    // O back-office também exige sessão; se é administrador, quem decide é
+    // o banco — aqui só barramos visitante anônimo.
+    "/admin",
   ];
   const isProtectedRoute = ROTAS_PROTEGIDAS.some((rota) =>
     request.nextUrl.pathname.startsWith(rota)
