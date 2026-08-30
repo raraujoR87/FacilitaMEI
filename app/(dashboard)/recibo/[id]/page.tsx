@@ -7,6 +7,7 @@ import { gerarBrCode, perfilTemPix, type TipoChavePix } from "@/lib/pix";
 import { Carimbo } from "@/components/ui/campos";
 import { BotaoCopiar } from "@/components/ui/botao-copiar";
 import { BotaoImprimir } from "@/app/(dashboard)/relatorio/botao-imprimir";
+import { formatarMomento } from "@/lib/admin";
 
 type Item = {
   descricao: string;
@@ -34,10 +35,13 @@ type Documento = {
 
 export default async function ReciboPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ bloqueado?: string }>;
 }) {
   const { id } = await params;
+  const { bloqueado } = await searchParams;
   const { supabase, user } = await exigirUsuario();
 
   const [{ data }, { data: perfil }] = await Promise.all([
@@ -57,6 +61,13 @@ export default async function ReciboPage({
       .eq("id", user.id)
       .single(),
   ]);
+
+  const { data: historico } = await supabase
+    .from("alteracoes")
+    .select("campo, valor_anterior, valor_novo, alterado_em")
+    .eq("registro_id", id)
+    .order("alterado_em", { ascending: false })
+    .limit(20);
 
   // Documento de outro tenant cai aqui como inexistente: a RLS não devolve
   // a linha, e 404 não revela que ela existe.
@@ -80,6 +91,7 @@ export default async function ReciboPage({
       : null;
 
   const titulo = doc.tipo === "recibo" ? "Recibo" : "Orçamento";
+  const editavel = !doc.nf_numero && doc.status !== "cancelado";
 
   return (
     <div>
@@ -87,8 +99,23 @@ export default async function ReciboPage({
         <Link href="/movimento" className="text-sm underline">
           ← Voltar ao movimento
         </Link>
-        <BotaoImprimir />
+        <div className="flex items-center gap-2">
+          {editavel && (
+            <Link href={`/recibo/${id}/editar`} className="botao botao-secundario">
+              Corrigir
+            </Link>
+          )}
+          <BotaoImprimir />
+        </div>
       </div>
+
+      {bloqueado && (
+        <p className="aviso aviso-erro mb-5 nao-imprimir">
+          {doc.nf_numero
+            ? `Este documento tem a nota ${doc.nf_numero} emitida e não pode mais ser alterado — mudar o valor divergiria do que o governo recebeu. Cancele e emita outro.`
+            : "Documento cancelado não pode ser editado."}
+        </p>
+      )}
 
       <article className="fita-recibo px-6 py-8 md:px-10 md:py-10">
         <header className="text-center">
@@ -221,6 +248,54 @@ export default async function ReciboPage({
           </div>
         )}
       </article>
+
+      {historico && historico.length > 0 && (
+        <section className="mt-6 nao-imprimir">
+          <p className="text-xs uppercase tracking-widest mb-2" style={{ color: "var(--tinta-suave)" }}>
+            Histórico de alterações
+          </p>
+          <div
+            className="rounded-lg border divide-y text-sm"
+            style={{ borderColor: "var(--borda)", background: "#fff" }}
+          >
+            {historico.map((h, i) => (
+              <div key={i} className="px-4 py-2 flex flex-wrap justify-between gap-2">
+                <span>
+                  <strong>{ROTULO_CAMPO[h.campo] ?? h.campo}</strong>{" "}
+                  <span style={{ color: "var(--tinta-suave)" }}>
+                    {exibirValor(h.campo, h.valor_anterior)} →{" "}
+                    {exibirValor(h.campo, h.valor_novo)}
+                  </span>
+                </span>
+                <span className="valor text-xs" style={{ color: "var(--tinta-suave)" }}>
+                  {formatarMomento(h.alterado_em)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
+
+/**
+ * O histórico guarda tudo como texto cru do banco. Dinheiro e data crus
+ * ("400.00", "2026-09-15") destoam no meio de uma tela em português.
+ */
+function exibirValor(campo: string, valor: string | null): string {
+  if (valor === null || valor === "") return "vazio";
+  if (campo === "valor") return formatarMoeda(Number(valor));
+  if (campo === "data_vencimento") return formatarData(valor);
+  return valor;
+}
+
+/** Nomes de coluna não servem para o cliente ler. */
+const ROTULO_CAMPO: Record<string, string> = {
+  valor: "Valor",
+  descricao_servico: "Descrição",
+  status: "Situação",
+  natureza: "Natureza",
+  data_vencimento: "Vencimento",
+  nf_numero: "Nota fiscal",
+};

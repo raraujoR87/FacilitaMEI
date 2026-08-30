@@ -265,6 +265,29 @@ fecha isso, e `planoEfetivo()` (espelhado em `plano_efetivo()` no banco) é a
 O Pro tem teto de uso justo em vez de "ilimitado": cada nota lida custa IA, e
 volume muito acima do padrão de um MEI custaria mais que a mensalidade.
 
+## Correção de registros
+
+Antes só dava para criar e excluir: um erro de digitação num recibo obrigava
+a cancelar e refazer, queimando um número da sequência por causa de uma
+letra. Agora dá para corrigir — com uma regra e um rastro.
+
+**O que pode ser corrigido:** despesa (registro interno), orçamento
+(proposta, negociar é o esperado), recibo pendente e recibo pago. Corrigir
+recibo pago **propaga para a receita lançada**, senão o relatório mostraria
+um valor e o documento, outro.
+
+**O que não pode:** documento com nota fiscal registrada, porque alterar o
+valor divergiria do que o governo já recebeu; e documento cancelado. Nesses
+casos o caminho é emitir outro. A trava vale na entrada da tela, não só no
+envio — abrir o formulário para depois recusar faria a pessoa digitar à toa.
+
+**Todo update deixa rastro** em `alteracoes`, escrito por gatilho e não pela
+aplicação: assim nenhum caminho de código, nem um bug futuro, altera valor
+sem registrar. Ninguém edita nem apaga a trilha pela API, nem o dono dos
+dados. O histórico aparece na própria tela do documento, e captura até as
+mudanças causadas por outros gatilhos — trocar um item recalcula o total, e
+isso também fica registrado.
+
 ## Decisões que valem registro
 
 - **Server Actions revalidam a sessão.** O `proxy.ts` protege a navegação,

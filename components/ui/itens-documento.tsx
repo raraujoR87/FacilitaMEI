@@ -40,11 +40,16 @@ export function totalDaLinha(linha: LinhaItem): number {
 export function ItensDocumento({
   ativo,
   aoAlternar,
+  iniciais,
 }: {
   ativo: boolean;
   aoAlternar: (ativo: boolean) => void;
+  /** Linhas já existentes, ao editar um documento. */
+  iniciais?: LinhaItem[];
 }) {
-  const [linhas, setLinhas] = useState<LinhaItem[]>([linhaVazia(1)]);
+  const [linhas, setLinhas] = useState<LinhaItem[]>(
+    iniciais && iniciais.length > 0 ? iniciais : [linhaVazia(1)]
+  );
 
   const total = linhas.reduce((soma, l) => soma + totalDaLinha(l), 0);
 

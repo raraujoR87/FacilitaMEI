@@ -14,6 +14,7 @@ import { BotaoSubmit } from "@/components/ui/botao-submit";
 import { SeletorMes } from "@/components/ui/seletor-mes";
 import { EnviarNota } from "./enviar-nota";
 import { Formularios } from "./formularios";
+import { EditarSaida } from "./editar-saida";
 
 type Um<T> = T | T[] | null;
 function um<T>(v: Um<T>): T | null {
@@ -28,6 +29,7 @@ type Linha = {
   data_competencia: string;
   fornecedor_cliente: string | null;
   origem: string;
+  categoria_id: string | null;
   categorias: Um<{ nome: string }>;
   documentos_venda: Um<{
     id: string;
@@ -67,7 +69,7 @@ export default async function MovimentoPage({
       supabase
         .from("lancamentos")
         .select(
-          "id, descricao, valor, tipo, data_competencia, fornecedor_cliente, origem, categorias(nome), documentos_venda(id, numero, natureza, nf_numero, clientes(nome, documento))"
+          "id, descricao, valor, tipo, data_competencia, fornecedor_cliente, origem, categoria_id, categorias(nome), documentos_venda(id, numero, natureza, nf_numero, clientes(nome, documento))"
         )
         .eq("user_id", user.id)
         .gte("data_competencia", inicio)
@@ -185,7 +187,7 @@ export default async function MovimentoPage({
         ) : (
           <div className="flex flex-col divide-y" style={{ borderColor: "var(--borda)" }}>
             {lista.map((l) => (
-              <ItemMovimento key={l.id} linha={l} />
+              <ItemMovimento key={l.id} linha={l} categorias={categorias ?? []} />
             ))}
           </div>
         )}
@@ -194,14 +196,20 @@ export default async function MovimentoPage({
   );
 }
 
-function ItemMovimento({ linha }: { linha: Linha }) {
+function ItemMovimento({
+  linha,
+  categorias,
+}: {
+  linha: Linha;
+  categorias: { id: string; nome: string }[];
+}) {
   const doc = um(linha.documentos_venda);
   const cliente = doc ? um(doc.clientes) : null;
   const fiscal = doc ? situacaoFiscal(doc.natureza, cliente?.documento) : null;
   const receita = linha.tipo === "receita";
 
   return (
-    <div className="flex justify-between items-start gap-3 py-3 text-sm">
+    <div className="flex flex-wrap justify-between items-start gap-3 py-3 text-sm">
       <div className="min-w-0">
         {doc ? (
           <Link href={`/recibo/${doc.id}`} className="font-medium truncate block underline">
@@ -237,15 +245,29 @@ function ItemMovimento({ linha }: { linha: Linha }) {
           {formatarMoeda(Number(linha.valor))}
         </span>
 
-        {/* Entrada não se apaga solta: ela pertence a um recibo numerado, e
-            sumir com ela deixaria o documento sem contrapartida. */}
+        {/* Entrada não se apaga nem se edita solta: ela pertence a um recibo
+            numerado, e mexer aqui deixaria documento e lançamento divergentes.
+            A correção dela é feita no próprio recibo. */}
         {!doc && (
-          <form action={excluirLancamento}>
-            <input type="hidden" name="id" value={linha.id} />
-            <BotaoSubmit variante="discreto" carregando="...">
-              Excluir
-            </BotaoSubmit>
-          </form>
+          <>
+            <EditarSaida
+              saida={{
+                id: linha.id,
+                descricao: linha.descricao,
+                valor: Number(linha.valor),
+                data_competencia: linha.data_competencia,
+                fornecedor_cliente: linha.fornecedor_cliente,
+                categoria_id: linha.categoria_id,
+              }}
+              categorias={categorias}
+            />
+            <form action={excluirLancamento}>
+              <input type="hidden" name="id" value={linha.id} />
+              <BotaoSubmit variante="discreto" carregando="...">
+                Excluir
+              </BotaoSubmit>
+            </form>
+          </>
         )}
       </div>
     </div>

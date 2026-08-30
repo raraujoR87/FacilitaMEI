@@ -278,3 +278,127 @@ export async function registrarNotaFiscal(
   revalidatePath("/nota-fiscal");
   return { sucesso: `Nota ${numero} registrada.` };
 }
+
+/**
+ * Corrige um documento já emitido.
+ *
+ * Nota fiscal registrada trava a edição: mudar o valor depois criaria
+ * divergência com o que o governo recebeu, e o relatório do contador
+ * deixaria de bater. Nesse caso o caminho é cancelar e emitir outro.
+ *
+ * Toda alteração fica registrada em `alteracoes` por gatilho do banco —
+ * corrigir dinheiro sem deixar rastro é pior do que não poder corrigir.
+ */
+export async function editarDocumento(
+  _anterior: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const { supabase, user } = await exigirUsuario();
+
+  const id = lerTexto(formData, "id");
+  if (!id) return { erro: "Documento não identificado." };
+
+  const { data: atual } = await supabase
+    .from("documentos_venda")
+    .select("id, numero, status, nf_numero")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!atual) return { erro: "Documento não encontrado." };
+  if (atual.nf_numero) {
+    return {
+      erro: `Este documento já tem a nota ${atual.nf_numero} emitida e não pode mais ser alterado. Cancele e emita outro.`,
+    };
+  }
+  if (atual.status === "cancelado") {
+    return { erro: "Documento cancelado não pode ser editado." };
+  }
+
+  const descricao = lerTexto(formData, "descricao_servico");
+  const valor = lerValor(formData);
+  const natureza = lerTexto(formData, "natureza");
+
+  if (!descricao) return { erro: "Descreva o serviço ou produto." };
+  if (valor === null) return { erro: "Informe um valor válido." };
+  if (natureza !== "servico" && natureza !== "produto") {
+    return { erro: "Escolha se foi serviço prestado ou produto vendido." };
+  }
+
+  const itens = lerItens(formData);
+  const valorTotal = itens.length > 0 ? somarItens(itens) : valor;
+  if (valorTotal === 0) return { erro: "O total ficou zerado." };
+
+  const { error } = await supabase
+    .from("documentos_venda")
+    .update({
+      natureza,
+      descricao_servico: descricao,
+      valor: valorTotal,
+      cliente_id: lerOpcional(formData, "cliente_id"),
+      data_vencimento: lerOpcional(formData, "data_vencimento"),
+      observacoes: lerOpcional(formData, "observacoes"),
+    })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { erro: "Não foi possível salvar as alterações." };
+
+  // Itens são substituídos por inteiro: reconciliar linha a linha traria
+  // complexidade sem ganho, já que a tela sempre envia a lista completa.
+  await supabase.from("itens_documento").delete().eq("documento_venda_id", id);
+
+  if (itens.length > 0) {
+    await supabase.from("itens_documento").insert(
+      itens.map((item, i) => ({
+        user_id: user.id,
+        documento_venda_id: id,
+        descricao: item.descricao,
+        quantidade: item.quantidade,
+        unidade: item.unidade,
+        valor_unitario: item.valorUnitario,
+        ordem: i + 1,
+      }))
+    );
+  }
+
+  // O recibo pago já virou receita; sem isto o relatório mostraria o valor
+  // antigo e o documento, o novo.
+  if (atual.status === "pago") {
+    await sincronizarReceita(supabase, user.id, id);
+  }
+
+  revalidarEntradas();
+  revalidatePath(`/recibo/${id}`);
+  return { sucesso: `Documento #${atual.numero} atualizado.` };
+}
+
+/** Realinha o lançamento de receita com o documento que o originou. */
+async function sincronizarReceita(
+  supabase: Awaited<ReturnType<typeof exigirUsuario>>["supabase"],
+  userId: string,
+  documentoId: string
+): Promise<void> {
+  const { data: documento } = await supabase
+    .from("documentos_venda")
+    .select("id, valor, descricao_servico, numero, clientes(nome)")
+    .eq("id", documentoId)
+    .eq("user_id", userId)
+    .single();
+
+  if (!documento) return;
+
+  const cliente = Array.isArray(documento.clientes)
+    ? documento.clientes[0]
+    : documento.clientes;
+
+  await supabase
+    .from("lancamentos")
+    .update({
+      valor: documento.valor,
+      descricao: `Recibo #${documento.numero} — ${documento.descricao_servico}`,
+      fornecedor_cliente: cliente?.nome ?? null,
+    })
+    .eq("documento_venda_id", documentoId)
+    .eq("user_id", userId);
+}

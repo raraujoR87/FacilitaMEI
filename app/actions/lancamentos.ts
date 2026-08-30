@@ -65,3 +65,55 @@ export async function excluirLancamento(formData: FormData): Promise<void> {
   revalidatePath("/dashboard");
   revalidatePath("/relatorio");
 }
+
+/**
+ * Corrige uma saída.
+ *
+ * Só despesa passa por aqui: receita pertence a um documento numerado e é
+ * corrigida por `editarDocumento`, que mantém recibo e lançamento alinhados.
+ */
+export async function editarLancamento(
+  _anterior: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const { supabase, user } = await exigirUsuario();
+
+  const id = lerTexto(formData, "id");
+  if (!id) return { erro: "Lançamento não identificado." };
+
+  const descricao = lerTexto(formData, "descricao");
+  const valor = lerValor(formData);
+  if (!descricao) return { erro: "Descreva a saída." };
+  if (valor === null || valor === 0) return { erro: "Informe um valor válido." };
+
+  const { data: atual } = await supabase
+    .from("lancamentos")
+    .select("id, tipo, documento_venda_id")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!atual) return { erro: "Lançamento não encontrado." };
+  if (atual.documento_venda_id) {
+    return { erro: "Esta entrada pertence a um recibo. Edite o recibo." };
+  }
+
+  const { error } = await supabase
+    .from("lancamentos")
+    .update({
+      descricao,
+      valor,
+      data_competencia: lerTexto(formData, "data_competencia") || hoje(),
+      categoria_id: lerOpcional(formData, "categoria_id"),
+      fornecedor_cliente: lerOpcional(formData, "fornecedor_cliente"),
+    })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { erro: "Não foi possível salvar." };
+
+  revalidatePath("/movimento");
+  revalidatePath("/dashboard");
+  revalidatePath("/relatorio");
+  return { sucesso: "Saída atualizada." };
+}
