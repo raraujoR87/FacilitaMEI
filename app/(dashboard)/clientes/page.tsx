@@ -1,100 +1,253 @@
+import Link from "next/link";
+import { AlertTriangle, PhoneOff, Trophy } from "lucide-react";
 import { exigirUsuario } from "@/lib/auth";
 import { excluirCliente } from "@/app/actions/clientes";
-import { formatarMoeda } from "@/lib/formato";
+import { formatarData, formatarMoeda } from "@/lib/formato";
 import { formatarDocumento, tipoPessoa } from "@/lib/fiscal";
+import { linkWhatsApp } from "@/lib/whatsapp";
+import {
+  descreverRecorrencia,
+  ROTULO_SITUACAO,
+  situacaoDoCliente,
+  type MetricaCliente,
+} from "@/lib/clientes";
 import { Recibo, Vazio } from "@/components/ui/campos";
 import { BotaoSubmit } from "@/components/ui/botao-submit";
 import { FormularioCliente } from "./formulario";
 
-type Cliente = {
-  id: string;
-  nome: string;
-  documento: string | null;
-  telefone: string | null;
-  email: string | null;
-  observacoes: string | null;
-};
-
 export default async function ClientesPage() {
-  const { supabase, user } = await exigirUsuario();
+  const { supabase } = await exigirUsuario();
 
-  const [{ data: clientes }, { data: documentos }] = await Promise.all([
-    supabase
-      .from("clientes")
-      .select("id, nome, documento, telefone, email, observacoes")
-      .eq("user_id", user.id)
-      .order("nome"),
-    supabase
-      .from("documentos_venda")
-      .select("cliente_id, valor, status")
-      .eq("user_id", user.id)
-      .eq("status", "pago"),
-  ]);
+  // Uma chamada só: calcular por cliente na aplicação seria N+1, e a
+  // carteira de um MEI cabe inteira numa passada no banco.
+  const { data } = await supabase.rpc("metricas_clientes");
+  const clientes = (data ?? []) as MetricaCliente[];
 
-  // Quanto cada cliente já rendeu — o dado que decide quem vale a pena
-  // atender de novo.
-  const totalPorCliente = new Map<string, number>();
-  for (const d of documentos ?? []) {
-    if (!d.cliente_id) continue;
-    totalPorCliente.set(
-      d.cliente_id,
-      (totalPorCliente.get(d.cliente_id) ?? 0) + Number(d.valor)
-    );
-  }
+  const comSituacao = clientes.map((c) => ({ m: c, situacao: situacaoDoCliente(c) }));
+  const devendo = comSituacao.filter((c) => c.situacao === "devendo");
+  const sumidos = comSituacao.filter((c) => c.situacao === "sumido");
 
-  const lista = (clientes ?? []) as Cliente[];
+  const faturadoTotal = clientes.reduce((s, c) => s + Number(c.total_pago), 0);
+  const emAberto = clientes.reduce((s, c) => s + Number(c.total_aberto), 0);
+  const compradores = clientes.filter((c) => c.documentos > 0);
+  const ticketGeral =
+    compradores.length > 0
+      ? faturadoTotal / compradores.reduce((s, c) => s + Number(c.documentos), 0)
+      : 0;
+
+  const maiores = clientes.filter((c) => Number(c.total_pago) > 0).slice(0, 5);
+  const maiorValor = maiores.length > 0 ? Number(maiores[0].total_pago) : 0;
 
   return (
     <div>
-      <h1 className="text-2xl mb-6" style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}>
+      <h1 className="text-2xl mb-1" style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}>
         Clientes
       </h1>
+      <p className="text-sm mb-6" style={{ color: "var(--tinta-suave)" }}>
+        {clientes.length} cadastrado(s) · {compradores.length} já compraram
+      </p>
+
+      {clientes.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <Cartao rotulo="Já faturado" valor={formatarMoeda(faturadoTotal)} cor="var(--positivo)" />
+          <Cartao rotulo="A receber" valor={formatarMoeda(emAberto)} cor="var(--pendente)" />
+          <Cartao rotulo="Ticket médio" valor={formatarMoeda(ticketGeral)} />
+          <Cartao
+            rotulo="Precisam de atenção"
+            valor={String(devendo.length + sumidos.length)}
+            cor={devendo.length + sumidos.length > 0 ? "var(--selo)" : undefined}
+          />
+        </div>
+      )}
+
+      {/* Ação antes de relatório: o MEI não precisa de número, precisa
+          saber a quem ligar hoje. */}
+      {devendo.length > 0 && (
+        <ListaDeAtencao
+          titulo={`${devendo.length} cliente(s) com pagamento vencido`}
+          Icone={AlertTriangle}
+          cor="var(--selo)"
+          itens={devendo}
+          mensagem={(m) =>
+            `Olá ${m.nome}! Passando para lembrar do pagamento de ${formatarMoeda(Number(m.total_vencido))} que está em aberto.`
+          }
+          detalhe={(m) => `${formatarMoeda(Number(m.total_vencido))} vencidos`}
+        />
+      )}
+
+      {sumidos.length > 0 && (
+        <ListaDeAtencao
+          titulo={`${sumidos.length} cliente(s) habituais sumiram`}
+          Icone={PhoneOff}
+          cor="var(--pendente)"
+          itens={sumidos}
+          mensagem={(m) => `Olá ${m.nome}! Faz um tempo que a gente não se fala. Precisa de alguma coisa?`}
+          detalhe={(m) =>
+            `sem comprar há ${m.dias_desde_ultima} dias · ${descreverRecorrencia(m)}`
+          }
+        />
+      )}
+
+      {maiores.length > 0 && (
+        <Recibo className="mb-6">
+          <p className="text-xs uppercase tracking-widest mb-3 flex items-center gap-1.5" style={{ color: "var(--tinta-suave)" }}>
+            <Trophy size={13} aria-hidden />
+            Maiores clientes
+          </p>
+          <div className="flex flex-col gap-2.5">
+            {maiores.map((c) => (
+              <div key={c.cliente_id}>
+                <div className="flex justify-between text-sm mb-1 gap-3">
+                  <span className="truncate">{c.nome}</span>
+                  <span className="valor shrink-0">{formatarMoeda(Number(c.total_pago))}</span>
+                </div>
+                <div className="h-1.5 rounded-full" style={{ background: "var(--papel-escuro)" }}>
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${maiorValor > 0 ? (Number(c.total_pago) / maiorValor) * 100 : 0}%`,
+                      background: "var(--positivo)",
+                    }}
+                  />
+                </div>
+                <p className="dica">
+                  {c.documentos} compra{c.documentos > 1 ? "s" : ""} ·{" "}
+                  {descreverRecorrencia(c)} · ticket {formatarMoeda(Number(c.ticket_medio))}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Recibo>
+      )}
 
       <FormularioCliente />
 
-      <Recibo titulo={`Cadastrados · ${lista.length}`}>
-        {lista.length === 0 ? (
+      <Recibo titulo="Todos os clientes">
+        {clientes.length === 0 ? (
           <Vazio>
-            Nenhum cliente cadastrado. Cadastrar aqui permite vincular recibos e
-            cobranças a cada pessoa.
+            Nenhum cliente cadastrado. Cadastrar aqui permite vincular recibos,
+            saber quem mais compra e quem está devendo.
           </Vazio>
         ) : (
           <div className="flex flex-col divide-y" style={{ borderColor: "var(--borda)" }}>
-            {lista.map((c) => (
-              <div key={c.id} className="flex justify-between items-start gap-4 py-3 text-sm">
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{c.nome}</p>
-                  <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
-                    {[
-                      c.documento
-                        ? `${formatarDocumento(c.documento)} · ${tipoPessoa(c.documento) === "juridica" ? "empresa" : "pessoa física"}`
-                        : "sem CPF/CNPJ",
-                      c.telefone,
-                      c.email,
-                      c.observacoes,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
+            {comSituacao.map(({ m, situacao }) => {
+              const rotulo = ROTULO_SITUACAO[situacao];
+              return (
+                <div key={m.cliente_id} className="flex justify-between items-start gap-3 py-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">
+                      {m.nome}{" "}
+                      <span className="text-xs font-normal" style={{ color: rotulo.cor }}>
+                        · {rotulo.texto}
+                      </span>
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
+                      {m.documento
+                        ? `${formatarDocumento(m.documento)} · ${tipoPessoa(m.documento) === "juridica" ? "empresa" : "pessoa física"}`
+                        : "sem CPF/CNPJ"}
+                      {m.ultima_compra && ` · última em ${formatarData(m.ultima_compra)}`}
+                      {m.pagou_com_atraso > 0 &&
+                        ` · atrasou ${m.pagou_com_atraso}x`}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 text-right">
+                    <div>
+                      {Number(m.total_pago) > 0 && (
+                        <p className="valor" style={{ color: "var(--positivo)" }}>
+                          {formatarMoeda(Number(m.total_pago))}
+                        </p>
+                      )}
+                      {Number(m.total_aberto) > 0 && (
+                        <p className="valor text-xs" style={{ color: "var(--pendente)" }}>
+                          {formatarMoeda(Number(m.total_aberto))} em aberto
+                        </p>
+                      )}
+                    </div>
+                    {/* Excluir só quem nunca comprou: apagar cliente com
+                        histórico deixaria recibos órfãos de nome. */}
+                    {m.documentos === 0 && (
+                      <form action={excluirCliente}>
+                        <input type="hidden" name="id" value={m.cliente_id} />
+                        <BotaoSubmit variante="discreto" carregando="...">
+                          Excluir
+                        </BotaoSubmit>
+                      </form>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {totalPorCliente.has(c.id) && (
-                    <span className="valor" style={{ color: "var(--positivo)" }}>
-                      {formatarMoeda(totalPorCliente.get(c.id)!)}
-                    </span>
-                  )}
-                  <form action={excluirCliente}>
-                    <input type="hidden" name="id" value={c.id} />
-                    <BotaoSubmit variante="discreto" carregando="...">
-                      Excluir
-                    </BotaoSubmit>
-                  </form>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Recibo>
     </div>
+  );
+}
+
+function Cartao({ rotulo, valor, cor }: { rotulo: string; valor: string; cor?: string }) {
+  return (
+    <div className="rounded-lg border px-3 py-3" style={{ borderColor: "var(--borda)" }}>
+      <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
+        {rotulo}
+      </p>
+      <p className="valor mt-0.5" style={{ color: cor ?? "var(--tinta)" }}>
+        {valor}
+      </p>
+    </div>
+  );
+}
+
+function ListaDeAtencao({
+  titulo,
+  Icone,
+  cor,
+  itens,
+  mensagem,
+  detalhe,
+}: {
+  titulo: string;
+  Icone: React.ComponentType<{ size?: number; "aria-hidden"?: boolean }>;
+  cor: string;
+  itens: { m: MetricaCliente }[];
+  mensagem: (m: MetricaCliente) => string;
+  detalhe: (m: MetricaCliente) => string;
+}) {
+  return (
+    <section className="mb-6">
+      <h2 className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: cor }}>
+        <Icone size={15} aria-hidden />
+        {titulo}
+      </h2>
+      <div className="rounded-lg border divide-y" style={{ borderColor: cor, background: "#fff" }}>
+        {itens.map(({ m }) => {
+          const whatsapp = linkWhatsApp(m.telefone, mensagem(m));
+          return (
+            <div key={m.cliente_id} className="px-5 py-3 flex flex-wrap justify-between items-center gap-3 text-sm">
+              <div className="min-w-0">
+                <p className="font-medium truncate">{m.nome}</p>
+                <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
+                  {detalhe(m)}
+                </p>
+              </div>
+              {whatsapp ? (
+                <a
+                  href={whatsapp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="botao botao-secundario shrink-0"
+                >
+                  Falar no WhatsApp
+                </a>
+              ) : (
+                <Link href="/clientes" className="dica shrink-0">
+                  sem telefone cadastrado
+                </Link>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

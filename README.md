@@ -394,6 +394,30 @@ Duas regras que não são óbvias:
 O valor do DAS é informado pelo usuário, não fixado no código: muda todo ano
 com o salário mínimo e varia conforme a atividade.
 
+## Clientes como ferramenta de decisão
+
+A lista era um cadastro. O MEI não precisa de relatório de carteira: precisa
+saber **a quem ligar hoje**. A tela responde três perguntas, nessa ordem:
+
+1. **Quem está devendo** — vem primeiro, porque dinheiro parado é mais
+   urgente que oportunidade de venda.
+2. **Quem sumiu** — só conta como perda quem já comprou mais de uma vez.
+   Quem comprou uma vez e não voltou pode nunca ter sido cliente de verdade,
+   e tratar como perda gera cobrança fora de hora.
+3. **Quem compra mais** — ranking com recorrência e ticket médio.
+
+Cada cliente em atenção vem com o botão de WhatsApp e a mensagem escrita.
+Sem isso a informação vira relatório, e relatório não muda o que acontece na
+semana.
+
+`metricas_clientes()` calcula tudo numa passada — por cliente seria N+1. A
+função roda como quem chama, sem `security definer`: a RLS de `clientes` e
+`documentos_venda` já limita ao dono, e ignorá-la ali seria risco sem ganho.
+
+`documentos_venda.pago_em` existe para responder quem paga em dia e quem
+sempre atrasa — o cliente que o MEI precisa identificar antes de aceitar o
+próximo serviço a prazo.
+
 ## Decisões que valem registro
 
 - **Server Actions revalidam a sessão.** O `proxy.ts` protege a navegação,

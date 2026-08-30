@@ -224,9 +224,11 @@ export async function marcarComoPago(formData: FormData): Promise<void> {
 
   if (!documento || documento.status === "pago") return;
 
+  // `pago_em` sustenta a leitura de comportamento de pagamento: sem a data
+  // da baixa não dá para saber quem paga em dia e quem sempre atrasa.
   await supabase
     .from("documentos_venda")
-    .update({ status: "pago" })
+    .update({ status: "pago", pago_em: new Date().toISOString() })
     .eq("id", id)
     .eq("user_id", user.id);
 
