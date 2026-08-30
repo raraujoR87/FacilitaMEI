@@ -30,6 +30,7 @@ type Linha = {
   origem: string;
   categorias: Um<{ nome: string }>;
   documentos_venda: Um<{
+    id: string;
     numero: number;
     natureza: Natureza;
     nf_numero: string | null;
@@ -66,7 +67,7 @@ export default async function MovimentoPage({
       supabase
         .from("lancamentos")
         .select(
-          "id, descricao, valor, tipo, data_competencia, fornecedor_cliente, origem, categorias(nome), documentos_venda(numero, natureza, nf_numero, clientes(nome, documento))"
+          "id, descricao, valor, tipo, data_competencia, fornecedor_cliente, origem, categorias(nome), documentos_venda(id, numero, natureza, nf_numero, clientes(nome, documento))"
         )
         .eq("user_id", user.id)
         .gte("data_competencia", inicio)
@@ -202,7 +203,13 @@ function ItemMovimento({ linha }: { linha: Linha }) {
   return (
     <div className="flex justify-between items-start gap-3 py-3 text-sm">
       <div className="min-w-0">
-        <p className="font-medium truncate">{linha.descricao}</p>
+        {doc ? (
+          <Link href={`/recibo/${doc.id}`} className="font-medium truncate block underline">
+            {linha.descricao}
+          </Link>
+        ) : (
+          <p className="font-medium truncate">{linha.descricao}</p>
+        )}
         <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
           {formatarData(linha.data_competencia)}
           {doc && ` · ${doc.natureza === "servico" ? "Serviço" : "Produto"}`}

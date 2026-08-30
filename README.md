@@ -12,6 +12,8 @@ automaticamente via IA.
   natureza e leitura de nota por foto.
 - **Nota fiscal** — quais entradas exigem nota, onde emitir e registro do
   número depois de emitida.
+- **Recibo** — documento completo e imprimível, com itens, cliente, total,
+  observações e o PIX quando ainda não foi pago.
 - **Cobrança** — pendências ordenadas por vencimento, com código PIX
   copia-e-cola gerado na hora e link de cobrança pelo WhatsApp. Dar baixa
   numa cobrança lança a receita no financeiro automaticamente.
@@ -72,6 +74,7 @@ app/
   (dashboard)/dashboard         — resumo do mês e pendências
   (dashboard)/movimento         — entradas e saídas, separadas por natureza
   (dashboard)/nota-fiscal       — obrigatoriedade, onde emitir e registro
+  (dashboard)/recibo/[id]       — documento imprimível com itens e PIX
   (dashboard)/cobranca          — pendências, PIX e cobrança por WhatsApp
   (dashboard)/clientes          — cadastro de clientes
   (dashboard)/relatorio         — consolidação mensal, impressão e planilha
@@ -203,6 +206,23 @@ A tela mostra a contagem regressiva.
 
 Regra fiscal muda. Estas datas precisam ser revisadas com um contador antes de
 cada temporada de mudança — o código diz isso no lugar onde importa.
+
+## Detalhamento por item
+
+Um recibo pode ser uma linha só — "corte e escova, R$ 45" — ou detalhado item
+a item, com quantidade, unidade e valor unitário. O detalhamento fica recolhido
+por padrão: a maioria dos registros é de uma linha, e abrir uma tabela para
+todo mundo tornaria o caminho comum mais lento.
+
+Quando há itens, **eles mandam no total**. Um gatilho no banco recalcula
+`documentos_venda.valor` a cada inserção, alteração ou exclusão de item. Sem
+isso existiriam dois totais divergentes, e o PIX poderia cobrar valor diferente
+do que o recibo mostra. O total de cada item é coluna gerada pelo Postgres, de
+modo que tela e banco nunca discordam no arredondamento.
+
+Quantidade aceita fração ("7,5 h") e vírgula decimal. Cliente e servidor usam
+o mesmo `lerNumeroBR` — antes não usavam, e `Number("7,5")` virava `NaN`: o
+item era descartado em silêncio e o recibo saía menor que o combinado.
 
 ## Decisões que valem registro
 

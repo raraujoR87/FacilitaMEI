@@ -89,3 +89,15 @@ export function formatarCentavos(centavos: number): string {
 export function estaVencido(dataVencimento: string | null): boolean {
   return dataVencimento !== null && dataVencimento.slice(0, 10) < hoje();
 }
+
+/**
+ * Lê um número digitado em pt-BR, onde a vírgula é o separador decimal.
+ *
+ * Existe porque `Number("7,5")` é NaN: o componente convertia a vírgula e a
+ * Server Action não, então um item com quantidade fracionária era descartado
+ * silenciosamente e o recibo saía com valor menor que o combinado.
+ */
+export function lerNumeroBR(texto: string): number {
+  const n = Number(String(texto).trim().replace(",", "."));
+  return Number.isFinite(n) ? n : 0;
+}

@@ -8,6 +8,7 @@ import { ESTADO_INICIAL } from "@/app/actions/tipos";
 import { Aviso } from "@/components/ui/campos";
 import { BotaoSubmit } from "@/components/ui/botao-submit";
 import { CampoValor } from "@/components/ui/campo-valor";
+import { ItensDocumento } from "@/components/ui/itens-documento";
 import { hoje } from "@/lib/formato";
 import { situacaoFiscal } from "@/lib/fiscal";
 
@@ -72,6 +73,7 @@ function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
   const [tipo, setTipo] = useState<"recibo" | "orcamento">("recibo");
   const [recebido, setRecebido] = useState(true);
   const [clienteId, setClienteId] = useState("");
+  const [detalhado, setDetalhado] = useState(false);
 
   const cliente = clientes.find((c) => c.id === clienteId);
   const fiscal = situacaoFiscal(natureza, cliente?.documento);
@@ -128,7 +130,11 @@ function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <CampoValor />
+        {detalhado ? (
+          <input type="hidden" name="valor" value="0" />
+        ) : (
+          <CampoValor />
+        )}
         <div>
           <label className="rotulo" htmlFor="cliente_id">
             Cliente
@@ -150,6 +156,22 @@ function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
             ))}
           </select>
         </div>
+      </div>
+
+      <ItensDocumento ativo={detalhado} aoAlternar={setDetalhado} />
+
+      <div>
+        <label className="rotulo" htmlFor="observacoes">
+          Observações
+          <span className="dica"> (opcional)</span>
+        </label>
+        <textarea
+          id="observacoes"
+          name="observacoes"
+          rows={2}
+          placeholder="Garantia, prazo, o que não está incluso..."
+          className="campo"
+        />
       </div>
 
       {/* O aviso fiscal aparece antes de emitir, não depois — é quando ainda

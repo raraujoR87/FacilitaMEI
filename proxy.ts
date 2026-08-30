@@ -36,6 +36,7 @@ export async function proxy(request: NextRequest) {
     "/financeiro",
     "/movimento",
     "/nota-fiscal",
+    "/recibo",
     "/vendas",
     "/cobranca",
     "/clientes",

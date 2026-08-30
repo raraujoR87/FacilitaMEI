@@ -2,13 +2,52 @@
 
 import { revalidatePath } from "next/cache";
 import { exigirUsuario } from "@/lib/auth";
-import { hoje } from "@/lib/formato";
+import { hoje, lerNumeroBR } from "@/lib/formato";
 import {
   type EstadoForm,
   lerOpcional,
   lerTexto,
   lerValor,
 } from "@/app/actions/tipos";
+
+type ItemEntrada = {
+  descricao: string;
+  quantidade: number;
+  unidade: string;
+  valorUnitario: number;
+};
+
+/**
+ * Lê as linhas de detalhamento do formulário.
+ *
+ * Os campos chegam como listas paralelas (uma entrada por linha da tabela).
+ * Linhas sem descrição são descartadas: é o que sobra quando a pessoa
+ * adiciona uma linha e desiste de preencher.
+ */
+function lerItens(formData: FormData): ItemEntrada[] {
+  const descricoes = formData.getAll("item_descricao").map(String);
+  const quantidades = formData.getAll("item_quantidade").map(String);
+  const unidades = formData.getAll("item_unidade").map(String);
+  const valores = formData.getAll("item_valor").map(String);
+
+  return descricoes
+    .map((descricao, i) => ({
+      descricao: descricao.trim(),
+      quantidade: lerNumeroBR(quantidades[i] ?? "1"),
+      unidade: (unidades[i] ?? "un").trim() || "un",
+      valorUnitario: lerNumeroBR(valores[i] ?? "0"),
+    }))
+    .filter((item) => item.descricao !== "" && item.quantidade > 0);
+}
+
+function somarItens(itens: ItemEntrada[]): number {
+  // Duas casas por item antes de somar, igual ao que o banco calcula na
+  // coluna gerada — evita divergência de centavo entre tela e recibo.
+  return itens.reduce(
+    (soma, item) => soma + Math.round(item.quantidade * item.valorUnitario * 100) / 100,
+    0
+  );
+}
 
 /** Telas afetadas por qualquer mudança em entrada de dinheiro. */
 const TELAS_DE_ENTRADA = ["/movimento", "/cobranca", "/dashboard", "/relatorio"];
@@ -39,12 +78,21 @@ export async function criarDocumento(
   const recebido = formData.get("recebido") === "sim";
 
   if (!descricao) return { erro: "Descreva o serviço ou produto." };
-  if (valor === null || valor === 0) return { erro: "Informe um valor válido." };
+  if (valor === null) return { erro: "Informe um valor válido." };
   if (tipo !== "recibo" && tipo !== "orcamento") {
     return { erro: "Escolha entre recibo e orçamento." };
   }
   if (natureza !== "servico" && natureza !== "produto") {
     return { erro: "Escolha se foi serviço prestado ou produto vendido." };
+  }
+
+  const itens = lerItens(formData);
+  // Havendo itens, eles mandam no total: o valor solto viraria uma segunda
+  // verdade, e o PIX poderia cobrar diferente do que o recibo mostra.
+  const valorTotal = itens.length > 0 ? somarItens(itens) : valor;
+
+  if (valorTotal === 0) {
+    return { erro: "O total ficou zerado. Confira os valores dos itens." };
   }
 
   // Orçamento é proposta, não dinheiro recebido: nunca entra como pago.
@@ -57,17 +105,41 @@ export async function criarDocumento(
       tipo,
       natureza,
       descricao_servico: descricao,
-      valor,
+      valor: valorTotal,
       status,
       cliente_id: lerOpcional(formData, "cliente_id"),
       data_emissao: lerTexto(formData, "data_emissao") || hoje(),
       data_vencimento: lerOpcional(formData, "data_vencimento"),
+      observacoes: lerOpcional(formData, "observacoes"),
     })
     .select("id, numero")
     .single();
 
   if (error) return { erro: "Não foi possível emitir o documento." };
 
+  if (itens.length > 0) {
+    const { error: erroItens } = await supabase.from("itens_documento").insert(
+      itens.map((item, i) => ({
+        user_id: user.id,
+        documento_venda_id: documento.id,
+        descricao: item.descricao,
+        quantidade: item.quantidade,
+        unidade: item.unidade,
+        valor_unitario: item.valorUnitario,
+        ordem: i + 1,
+      }))
+    );
+
+    if (erroItens) {
+      // Documento sem os itens que o justificam é pior que documento
+      // nenhum: o cliente receberia um recibo sem o detalhe combinado.
+      await supabase.from("documentos_venda").delete().eq("id", documento.id);
+      return { erro: "Não foi possível salvar os itens. Nada foi emitido." };
+    }
+  }
+
+  // Depois dos itens: o gatilho do banco já ajustou o total do documento,
+  // e a receita precisa nascer com o valor final.
   if (status === "pago") {
     await lancarReceita(supabase, user.id, documento.id);
   }

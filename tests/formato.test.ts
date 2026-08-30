@@ -7,6 +7,7 @@ import {
   formatarDataDoMomento,
   formatarMoeda,
   hoje,
+  lerNumeroBR,
   intervaloDoMes,
   rotuloMes,
   ultimosMeses,
@@ -84,4 +85,15 @@ test("formatarDataDoMomento converte o instante para o dia no Brasil", () => {
   assert.equal(formatarDataDoMomento("2026-08-30T12:00:00Z"), "30/08/2026");
   // Virada de ano: 01/01 às 02:00 UTC é 31/12 no Brasil.
   assert.equal(formatarDataDoMomento("2027-01-01T02:00:00Z"), "31/12/2026");
+});
+
+test("lerNumeroBR aceita a vírgula decimal do teclado brasileiro", () => {
+  // Number("7,5") é NaN. Sem este parser, um item de 7,5 h era descartado
+  // pela Server Action e o recibo saía com valor menor que o combinado.
+  assert.equal(lerNumeroBR("7,5"), 7.5);
+  assert.equal(lerNumeroBR("7.5"), 7.5);
+  assert.equal(lerNumeroBR("6"), 6);
+  assert.equal(lerNumeroBR(" 2,25 "), 2.25);
+  assert.equal(lerNumeroBR("abc"), 0, "texto inválido vira zero, não NaN");
+  assert.equal(lerNumeroBR(""), 0);
 });

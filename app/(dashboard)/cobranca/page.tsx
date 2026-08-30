@@ -103,9 +103,12 @@ export default async function CobrancaPage() {
                 <div key={p.id} className="py-4 text-sm">
                   <div className="flex justify-between items-start gap-4">
                     <div className="min-w-0">
-                      <p className="font-medium truncate">
+                      <Link
+                        href={`/recibo/${p.id}`}
+                        className="font-medium truncate block underline"
+                      >
                         #{p.numero} · {p.descricao_servico}
-                      </p>
+                      </Link>
                       <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
                         {cliente?.nome ?? "Sem cliente"}
                         {p.data_vencimento
