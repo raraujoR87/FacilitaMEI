@@ -41,7 +41,7 @@ export default function LoginPage() {
         Entrar
       </h1>
       <p className="text-sm mb-6" style={{ color: "var(--tinta-suave)" }}>
-        Acesse seu FacilitaMEI
+        Acesse seu AgilizeMei
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

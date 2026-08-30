@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { senhaAtendeRequisitos } from "@/lib/senha";
+import { RequisitosSenha } from "@/components/ui/requisitos-senha";
 
 export default function CadastroPage() {
   const router = useRouter();
@@ -13,8 +15,18 @@ export default function CadastroPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
+  const senhaOk = senhaAtendeRequisitos(senha);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Barra aqui para a pessoa não descobrir o problema depois de uma
+    // ida ao servidor. O Supabase valida de novo do lado dele.
+    if (!senhaOk) {
+      setErro("A senha ainda não atende aos requisitos abaixo.");
+      return;
+    }
+
     setErro(null);
     setCarregando(true);
 
@@ -30,7 +42,7 @@ export default function CadastroPage() {
 
     setCarregando(false);
     if (error) {
-      setErro(error.message);
+      setErro(traduzirErro(error.message));
       return;
     }
     router.push("/dashboard");
@@ -49,61 +61,72 @@ export default function CadastroPage() {
         Comece grátis, sem cartão de crédito
       </p>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <div>
-          <label className="text-sm font-medium block mb-1" htmlFor="nome">
+          <label className="rotulo" htmlFor="nome">
             Nome do negócio
           </label>
           <input
             id="nome"
             required
+            autoComplete="organization"
+            placeholder="Ex: Salão da Rita"
             value={nomeNegocio}
             onChange={(e) => setNomeNegocio(e.target.value)}
-            className="w-full rounded-md border px-3 py-2"
-            style={{ borderColor: "var(--borda)" }}
+            className="campo"
           />
         </div>
+
         <div>
-          <label className="text-sm font-medium block mb-1" htmlFor="email">
+          <label className="rotulo" htmlFor="email">
             E-mail
           </label>
           <input
             id="email"
             type="email"
             required
+            autoComplete="email"
+            inputMode="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border px-3 py-2"
-            style={{ borderColor: "var(--borda)" }}
+            className="campo"
           />
         </div>
+
         <div>
-          <label className="text-sm font-medium block mb-1" htmlFor="senha">
+          <label className="rotulo" htmlFor="senha">
             Senha
           </label>
           <input
             id="senha"
             type="password"
             required
-            minLength={6}
+            autoComplete="new-password"
+            aria-describedby="requisitos-senha"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
-            className="w-full rounded-md border px-3 py-2"
-            style={{ borderColor: "var(--borda)" }}
+            className="campo"
+            style={
+              senha.length > 0 && !senhaOk
+                ? { borderColor: "var(--pendente)" }
+                : undefined
+            }
           />
+          <div id="requisitos-senha">
+            <RequisitosSenha senha={senha} />
+          </div>
         </div>
 
         {erro && (
-          <p className="text-sm" style={{ color: "var(--selo)" }}>
+          <p className="aviso aviso-erro" role="alert">
             {erro}
           </p>
         )}
 
         <button
           type="submit"
-          disabled={carregando}
-          className="mt-2 rounded-md py-2.5 font-medium text-white disabled:opacity-60"
-          style={{ background: "var(--tinta)" }}
+          disabled={carregando || !senhaOk}
+          className="botao mt-2"
         >
           {carregando ? "Criando..." : "Criar conta grátis"}
         </button>
@@ -117,4 +140,23 @@ export default function CadastroPage() {
       </p>
     </div>
   );
+}
+
+/** O Supabase responde em inglês; aqui vira português de gente. */
+function traduzirErro(mensagem: string): string {
+  const m = mensagem.toLowerCase();
+
+  if (m.includes("already registered") || m.includes("already been registered")) {
+    return "Já existe uma conta com esse e-mail. Tente entrar.";
+  }
+  if (m.includes("invalid") && m.includes("email")) {
+    return "Esse e-mail não parece válido. Confira o endereço.";
+  }
+  if (m.includes("password")) {
+    return "A senha não foi aceita. Confira os requisitos abaixo.";
+  }
+  if (m.includes("rate limit") || m.includes("too many")) {
+    return "Muitas tentativas seguidas. Espere um minuto e tente de novo.";
+  }
+  return mensagem;
 }

@@ -27,7 +27,7 @@ export default async function AdminLayout({
             className="text-sm tracking-widest uppercase"
             style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
           >
-            FacilitaMEI · Operação
+            AgilizeMei · Operação
           </span>
 
           <nav className="flex gap-1 flex-1">

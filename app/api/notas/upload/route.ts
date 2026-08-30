@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Você usou as notas do plano grátis deste mês. Continue lançando manualmente ou faça upgrade.",
+            "Você usou as notas do plano grátis deste mês. Continue lançando manualmente, ou veja o plano Pro em Plano e cobrança.",
         },
         { status: 402 }
       );

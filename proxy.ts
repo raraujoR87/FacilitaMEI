@@ -39,6 +39,7 @@ export async function proxy(request: NextRequest) {
     "/clientes",
     "/relatorio",
     "/configuracoes",
+    "/planos",
     // O back-office também exige sessão; se é administrador, quem decide é
     // o banco — aqui só barramos visitante anônimo.
     "/admin",

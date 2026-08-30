@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { sair } from "@/app/actions/sessao";
-import { Navegacao } from "@/components/ui/navegacao";
+import { NavegacaoInferior, NavegacaoLateral } from "@/components/ui/navegacao";
+import { Marca } from "@/components/ui/marca";
 
 export default async function DashboardLayout({
   children,
@@ -22,44 +23,38 @@ export default async function DashboardLayout({
     supabase.rpc("eh_administrador"),
   ]);
 
+  const nomeNegocio = perfil?.nome_negocio ?? "Meu negócio";
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
+      {/* Barra lateral: só no desktop. */}
       <aside
-        className="md:w-56 md:shrink-0 border-b md:border-b-0 md:border-r px-5 py-6 flex md:flex-col md:min-h-screen justify-between items-center md:items-stretch nao-imprimir"
+        className="hidden md:flex md:w-56 md:shrink-0 border-r px-5 py-6 flex-col md:min-h-screen justify-between nao-imprimir"
         style={{ borderColor: "var(--borda)" }}
       >
         <div>
-          <Link
-            href="/dashboard"
-            className="text-lg tracking-tight"
-            style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
-          >
-            Facilita<span style={{ color: "var(--positivo)" }}>MEI</span>
+          <Link href="/dashboard">
+            <Marca />
           </Link>
-          <Navegacao orientacao="lateral" />
+          <NavegacaoLateral ehAdministrador={Boolean(ehAdministrador)} />
         </div>
 
-        <div className="md:pt-6">
+        <div className="pt-6">
           <p
-            className="text-xs truncate max-w-[12rem]"
+            className="text-xs truncate"
             style={{ color: "var(--tinta-suave)" }}
-            title={perfil?.nome_negocio ?? undefined}
+            title={nomeNegocio}
           >
-            {perfil?.nome_negocio ?? "Meu negócio"}
+            {nomeNegocio}
           </p>
-          <p className="text-xs mb-2" style={{ color: "var(--tinta-suave)" }}>
+          <Link
+            href="/planos"
+            className="text-xs underline"
+            style={{ color: "var(--tinta-suave)" }}
+          >
             Plano {perfil?.plano === "pro" ? "Pro" : "grátis"}
-          </p>
-          {ehAdministrador && (
-            <Link
-              href="/admin"
-              className="text-xs underline block mb-2"
-              style={{ color: "var(--tinta-suave)" }}
-            >
-              Painel de operação
-            </Link>
-          )}
-          <form action={sair}>
+          </Link>
+          <form action={sair} className="mt-2">
             <button type="submit" className="botao botao-discreto px-0">
               Sair
             </button>
@@ -68,11 +63,29 @@ export default async function DashboardLayout({
       </aside>
 
       <div className="flex-1 min-w-0">
-        <div className="nao-imprimir">
-          <Navegacao orientacao="topo" />
-        </div>
-        <main className="px-6 py-8 max-w-4xl mx-auto">{children}</main>
+        {/* Cabeçalho compacto do celular, já que a lateral não existe lá. */}
+        <header
+          className="md:hidden flex items-center justify-between px-5 py-3 border-b nao-imprimir"
+          style={{ borderColor: "var(--borda)", background: "var(--papel)" }}
+        >
+          <Link href="/dashboard">
+            <Marca tamanho="pequeno" />
+          </Link>
+          <span
+            className="text-xs truncate max-w-[50%]"
+            style={{ color: "var(--tinta-suave)" }}
+          >
+            {nomeNegocio}
+          </span>
+        </header>
+
+        {/* pb-24 no celular abre espaço para a barra fixa não cobrir conteúdo. */}
+        <main className="px-5 md:px-6 py-6 md:py-8 pb-24 md:pb-8 max-w-4xl mx-auto">
+          {children}
+        </main>
       </div>
+
+      <NavegacaoInferior ehAdministrador={Boolean(ehAdministrador)} sair={sair} />
     </div>
   );
 }

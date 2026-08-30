@@ -88,7 +88,7 @@ export default async function CobrancaPage() {
                       nomeTitular: perfil.nome_titular_pix!,
                       cidade: perfil.cidade_pix ?? "",
                       valor: Number(p.valor),
-                      identificador: `FMEI${p.numero}`,
+                      identificador: `AMEI${p.numero}`,
                     })
                   : null;
 

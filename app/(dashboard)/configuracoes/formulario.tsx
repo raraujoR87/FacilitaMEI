@@ -59,7 +59,7 @@ export function FormularioPerfil({ perfil }: { perfil: Perfil }) {
           </p>
           <p className="dica">
             Com esses dados o sistema gera o código de pagamento de cada
-            cobrança. O dinheiro cai direto na sua conta — o FacilitaMEI não
+            cobrança. O dinheiro cai direto na sua conta — o AgilizeMei não
             fica no meio.
           </p>
         </div>

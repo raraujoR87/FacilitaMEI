@@ -1,4 +1,4 @@
-# FacilitaMEI
+# AgilizeMei
 
 ERP financeiro simples para MEIs e autônomos brasileiros. A ideia central:
 **zero fricção de entrada de dados** — o usuário manda a foto de uma nota
@@ -18,6 +18,7 @@ automaticamente via IA.
 - **Relatório** — consolidação mensal por categoria, pronta para imprimir
   em PDF ou baixar em planilha para o contador.
 - **Configurações** — dados do negócio, chave PIX e WhatsApp.
+- **Plano e cobrança** — consumo de notas do mês e contratação do Pro.
 - **Operação** (`/admin`) — back-office do dono do SaaS: todos os tenants com
   métricas de uso, linha do tempo de acesso, contas travadas no cadastro,
   troca de plano e envio de redefinição de senha.
@@ -138,6 +139,35 @@ select id, 'fundador' from auth.users where email = 'voce@exemplo.com';
 Não há caminho pela API para virar administrador: a tabela tem policy só de
 leitura do próprio registro.
 
+## Comercial
+
+A landing em `/` é a página de vendas: dor, como funciona, módulos, preços,
+perguntas frequentes e chamada final. Os preços saem de `lib/planos.ts`, que
+é a fonte única — a landing, a tela de plano dentro do app e o limite aplicado
+no upload de notas leem do mesmo lugar.
+
+A contratação usa **link estático de pagamento** (`NEXT_PUBLIC_LINK_ASSINATURA_MENSAL`
+e `..._ANUAL`). Asaas, Mercado Pago e Stripe oferecem esse tipo de link, o que
+permite vender sem integrar API nem tratar webhook. O cliente paga pelo link e
+o plano é liberado em `/admin`. Quando o volume justificar, vale trocar por
+integração com webhook para liberar sozinho.
+
+Sem link configurado, a tela cai no contato por WhatsApp
+(`NEXT_PUBLIC_WHATSAPP_CONTATO`); sem nenhum dos dois, ela diz exatamente qual
+variável falta em vez de mostrar um botão quebrado.
+
+## No celular
+
+O acesso principal é pelo telefone, então a navegação muda de forma:
+
+- **Celular** — barra fixa no rodapé com cinco ícones (Início, Financeiro,
+  Vendas, Cobrança, Mais). Fica no rodapé porque é onde o polegar alcança com
+  o aparelho numa mão só. Os alvos de toque medem 75×55px.
+- **Desktop** — barra lateral com ícone e rótulo.
+
+Os itens menos frequentes (Clientes, Relatório, Plano, Configurações, Sair)
+ficam na gaveta "Mais", que abre de baixo para cima.
+
 ## Decisões que valem registro
 
 - **Server Actions revalidam a sessão.** O `proxy.ts` protege a navegação,
@@ -150,6 +180,10 @@ leitura do próprio registro.
   acesso é isolado por pasta de usuário nas policies do Storage.
 - **A numeração de recibos é por usuário.** A `serial` global do schema
   inicial vazava o volume da plataforma entre contas.
+- **Os requisitos de senha aparecem enquanto a pessoa digita.** A lista vive
+  em `lib/senha.ts` e precisa espelhar Authentication → Providers → Email no
+  Supabase: exibir uma regra que o servidor não aplica corrói a confiança no
+  aviso.
 - **Um schema Zod serve os dois provedores de IA.** Vira formato estruturado
   no Claude e JSON Schema no Gemini, e valida as duas respostas — trocar de
   provedor não muda o que o resto do app recebe.

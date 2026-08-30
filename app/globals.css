@@ -2,7 +2,7 @@
 @import "tailwindcss";
 
 :root {
-  /* FacilitaMEI — identidade "recibo de papel" */
+  /* AgilizeMei — identidade "recibo de papel" */
   --papel: #f7f5f0;
   --papel-escuro: #ece8de;
   --tinta: #1a1a1a;

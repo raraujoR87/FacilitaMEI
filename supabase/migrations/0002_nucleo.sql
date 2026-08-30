@@ -1,4 +1,4 @@
--- FacilitaMEI — núcleo do produto
+-- AgilizeMei — núcleo do produto
 -- Complementa 0001_init.sql com: dados de PIX no perfil, numeração de
 -- documentos por usuário, vínculo recibo→lançamento, categorias padrão
 -- e o bucket de comprovantes privado.

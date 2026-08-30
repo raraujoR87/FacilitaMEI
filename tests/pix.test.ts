@@ -49,7 +49,7 @@ test("o CRC declarado no fim confere com o payload", () => {
 });
 
 test("o payload é um TLV bem formado com os campos obrigatórios", () => {
-  const campos = parseTlv(gerarBrCode({ ...BASE, valor: 45.5, identificador: "FMEI7" }));
+  const campos = parseTlv(gerarBrCode({ ...BASE, valor: 45.5, identificador: "AMEI7" }));
 
   assert.equal(campos["00"], "01", "indicador de formato");
   assert.equal(campos["53"], "986", "moeda BRL");
@@ -59,7 +59,7 @@ test("o payload é um TLV bem formado com os campos obrigatórios", () => {
   const conta = parseTlv(campos["26"]);
   assert.equal(conta["00"], "br.gov.bcb.pix");
   assert.equal(conta["01"], "raphael@exemplo.com.br");
-  assert.equal(parseTlv(campos["62"])["05"], "FMEI7");
+  assert.equal(parseTlv(campos["62"])["05"], "AMEI7");
 });
 
 test("acentos são removidos e os campos respeitam o limite do padrão", () => {

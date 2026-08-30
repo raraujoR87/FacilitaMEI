@@ -1,4 +1,4 @@
--- FacilitaMEI — schema inicial
+-- AgilizeMei — schema inicial
 -- Multi-tenant: cada usuário autenticado é o dono direto dos seus registros
 -- (1 MEI = 1 conta = 1 tenant). Isolamento garantido via RLS em todas as tabelas.
 

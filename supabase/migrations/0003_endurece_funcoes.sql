@@ -1,4 +1,4 @@
--- FacilitaMEI — endurecimento das funções do banco
+-- AgilizeMei — endurecimento das funções do banco
 --
 -- Apontado pelo linter de segurança do Supabase depois de aplicar a 0002.
 

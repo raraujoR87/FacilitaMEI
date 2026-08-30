@@ -1,4 +1,4 @@
--- FacilitaMEI — back-office de operação
+-- AgilizeMei — back-office de operação
 --
 -- Duas regras guiaram o desenho:
 --
