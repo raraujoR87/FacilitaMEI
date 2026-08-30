@@ -351,6 +351,28 @@ O link público é lido por uma função `security definer` que devolve só o qu
 precisa aparecer: nem CPF, nem telefone, nem e-mail do cliente trafegam para
 quem abriu o link. Verificado que anônimo lê zero linhas das tabelas direto.
 
+## Do orçamento aceito ao recibo
+
+O cliente aceita pelo link público, e o aceite chega sem passar pelo app —
+então precisa ser empurrado para quem opera, ou o MEI só descobre por acaso
+e perde a venda no tempo de resposta. O aceite aparece em três lugares: no
+alerta do topo do dashboard, numa seção destacada de "A receber", e no
+próprio documento.
+
+Aceito, o orçamento vira recibo em um clique, copiando os itens. Sem isso o
+atrito de redigitar tudo logo depois de fechar a venda é o que faz o recibo
+não sair.
+
+O orçamento **não muda de tipo**: o número dele já foi entregue ao cliente e
+a proposta é história. Nasce um recibo novo apontando para a origem, e o
+orçamento fica com status `convertido` — não `pago`, porque proposta não é
+dinheiro recebido e um relatório por status contaria errado. Um índice único
+garante que dois cliques não virem duas cobranças do mesmo serviço.
+
+**Orçamento saiu da conta de "A receber".** Somar proposta ao valor a
+receber inflava o número com aquilo que ninguém se comprometeu a pagar — era
+erro contábil, não de tela.
+
 ## Decisões que valem registro
 
 - **Server Actions revalidam a sessão.** O `proxy.ts` protege a navegação,

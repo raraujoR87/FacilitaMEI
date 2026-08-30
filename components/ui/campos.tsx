@@ -131,6 +131,8 @@ export function Recibo({
 
 const CORES_STATUS: Record<string, string> = {
   pago: "var(--positivo)",
+  aceito: "var(--positivo)",
+  convertido: "var(--tinta-suave)",
   pendente: "var(--pendente)",
   vencido: "var(--selo)",
   cancelado: "var(--tinta-suave)",

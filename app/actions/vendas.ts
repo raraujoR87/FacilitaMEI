@@ -407,3 +407,96 @@ async function sincronizarReceita(
     .eq("documento_venda_id", documentoId)
     .eq("user_id", userId);
 }
+
+/**
+ * Emite o recibo de um orçamento que o cliente aceitou.
+ *
+ * O orçamento não muda de tipo: o número dele já foi entregue ao cliente e
+ * a proposta é história. Nasce um recibo novo apontando para a origem, com
+ * os mesmos itens — sem redigitar nada, que é o ponto.
+ */
+export async function gerarReciboDeOrcamento(
+  _anterior: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const { supabase, user } = await exigirUsuario();
+
+  const id = lerTexto(formData, "id");
+  if (!id) return { erro: "Orçamento não identificado." };
+
+  const { data: orcamento } = await supabase
+    .from("documentos_venda")
+    .select(
+      "id, numero, tipo, natureza, descricao_servico, valor, cliente_id, observacoes, aceito_em, status, itens_documento(descricao, quantidade, unidade, valor_unitario, ordem)"
+    )
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!orcamento) return { erro: "Orçamento não encontrado." };
+  if (orcamento.tipo !== "orcamento") return { erro: "Este documento não é um orçamento." };
+  if (orcamento.status === "cancelado") return { erro: "Orçamento cancelado." };
+
+  const { data: recibo, error } = await supabase
+    .from("documentos_venda")
+    .insert({
+      user_id: user.id,
+      tipo: "recibo",
+      natureza: orcamento.natureza,
+      descricao_servico: orcamento.descricao_servico,
+      valor: orcamento.valor,
+      status: "pendente",
+      cliente_id: orcamento.cliente_id,
+      data_emissao: hoje(),
+      observacoes: orcamento.observacoes,
+      gerado_de_orcamento_id: orcamento.id,
+    })
+    .select("id, numero")
+    .single();
+
+  if (error) {
+    // O índice único faz o segundo clique cair aqui em vez de duplicar a
+    // cobrança do mesmo serviço.
+    if (error.code === "23505") {
+      return { erro: "Este orçamento já virou recibo." };
+    }
+    return { erro: "Não foi possível gerar o recibo." };
+  }
+
+  const itens = (orcamento.itens_documento ?? []) as {
+    descricao: string;
+    quantidade: number;
+    unidade: string;
+    valor_unitario: number;
+    ordem: number;
+  }[];
+
+  if (itens.length > 0) {
+    await supabase.from("itens_documento").insert(
+      itens
+        .sort((a, b) => a.ordem - b.ordem)
+        .map((item, i) => ({
+          user_id: user.id,
+          documento_venda_id: recibo.id,
+          descricao: item.descricao,
+          quantidade: item.quantidade,
+          unidade: item.unidade,
+          valor_unitario: item.valor_unitario,
+          ordem: i + 1,
+        }))
+    );
+  }
+
+  // Sai de cena como "convertido", não como "pago": proposta não é dinheiro
+  // recebido, e marcar assim faria o relatório por status contar errado.
+  await supabase
+    .from("documentos_venda")
+    .update({ status: "convertido" })
+    .eq("id", orcamento.id)
+    .eq("user_id", user.id);
+
+  revalidarEntradas();
+  return {
+    sucesso: `Recibo #${recibo.numero} emitido a partir do orçamento #${orcamento.numero}.`,
+  };
+}

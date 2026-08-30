@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CircleCheck } from "lucide-react";
 import { exigirUsuario } from "@/lib/auth";
 import {
   estaVencido,
@@ -31,7 +32,7 @@ export default async function DashboardPage() {
       .order("created_at", { ascending: false }),
     supabase
       .from("documentos_venda")
-      .select("valor, data_vencimento")
+      .select("id, numero, tipo, valor, data_vencimento, aceito_em, aceito_por")
       .eq("user_id", user.id)
       .eq("status", "pendente"),
     // Faturamento do ano inteiro: é o que o teto do MEI mede, não o mês.
@@ -60,8 +61,14 @@ export default async function DashboardPage() {
     .filter((l) => l.tipo === "despesa")
     .reduce((soma, l) => soma + Number(l.valor), 0);
 
-  const aReceber = (pendentes ?? []).reduce((soma, p) => soma + Number(p.valor), 0);
-  const vencidas = (pendentes ?? []).filter((p) => estaVencido(p.data_vencimento)).length;
+  // Orçamento é proposta, não dinheiro a receber: somá-lo aqui inflava o
+  // valor com aquilo que ninguém se comprometeu a pagar.
+  const cobrancas = (pendentes ?? []).filter((p) => p.tipo === "recibo");
+  const aReceber = cobrancas.reduce((soma, p) => soma + Number(p.valor), 0);
+  const vencidas = cobrancas.filter((p) => estaVencido(p.data_vencimento)).length;
+  const orcamentosAceitos = (pendentes ?? []).filter(
+    (p) => p.tipo === "orcamento" && p.aceito_em !== null
+  );
 
   return (
     <div>
@@ -71,6 +78,21 @@ export default async function DashboardPage() {
       <p className="text-sm mb-6 primeira-maiuscula" style={{ color: "var(--tinta-suave)" }}>
         {rotuloMes(mes)}
       </p>
+
+      {orcamentosAceitos.length > 0 && (
+        <Link
+          href="/cobranca"
+          className="aviso aviso-sucesso mb-6 flex items-center gap-2"
+          style={{ borderWidth: 2 }}
+        >
+          <CircleCheck size={16} className="shrink-0" aria-hidden />
+          <span>
+            {orcamentosAceitos.length === 1
+              ? `${orcamentosAceitos[0].aceito_por} aceitou seu orçamento #${orcamentosAceitos[0].numero}. Emita o recibo →`
+              : `${orcamentosAceitos.length} orçamentos foram aceitos pelos clientes. Ver e emitir os recibos →`}
+          </span>
+        </Link>
+      )}
 
       <PainelTeto
         situacao={teto}

@@ -32,6 +32,8 @@ type Documento = {
   observacoes: string | null;
   nf_numero: string | null;
   token_publico: string | null;
+  aceito_em: string | null;
+  aceito_por: string | null;
   clientes: { nome: string; documento: string | null; telefone: string | null } | null;
   itens_documento: Item[];
 };
@@ -51,7 +53,7 @@ export default async function ReciboPage({
     supabase
       .from("documentos_venda")
       .select(
-        "id, numero, tipo, natureza, descricao_servico, valor, status, data_emissao, data_vencimento, observacoes, nf_numero, token_publico, clientes(nome, documento, telefone), itens_documento(descricao, quantidade, unidade, valor_unitario, total)"
+        "id, numero, tipo, natureza, descricao_servico, valor, status, data_emissao, data_vencimento, observacoes, nf_numero, token_publico, aceito_em, aceito_por, clientes(nome, documento, telefone), itens_documento(descricao, quantidade, unidade, valor_unitario, total)"
       )
       .eq("id", id)
       .eq("user_id", user.id)
@@ -239,6 +241,17 @@ export default async function ReciboPage({
             </p>
             <p className="whitespace-pre-line">{doc.observacoes}</p>
           </section>
+        )}
+
+        {doc.aceito_em && (
+          <p
+            className="mt-5 aviso aviso-sucesso"
+            style={{ borderWidth: 2 }}
+            role="status"
+          >
+            Aceito por <strong>{doc.aceito_por}</strong> em{" "}
+            {formatarMomento(doc.aceito_em)}.
+          </p>
         )}
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
