@@ -61,8 +61,9 @@ export async function POST(request: NextRequest) {
   const mediaType = arquivo.type || "image/jpeg";
 
   let extraido;
+  let provedor;
   try {
-    extraido = await extrairNota(bytes, mediaType);
+    ({ nota: extraido, provedor } = await extrairNota(bytes, mediaType));
   } catch (erro) {
     if (erro instanceof NotaIlegivelError) {
       return NextResponse.json({ error: erro.message }, { status: 422 });
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Não foi possível salvar o lançamento." }, { status: 500 });
   }
 
-  return NextResponse.json({ lancamento, confianca: extraido.confianca });
+  return NextResponse.json({ lancamento, confianca: extraido.confianca, provedor });
 }
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;

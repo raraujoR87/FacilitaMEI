@@ -24,8 +24,10 @@ automaticamente via IA.
 - [Next.js 16](https://nextjs.org) (App Router, Server Actions) + TypeScript + Tailwind v4
 - [Supabase](https://supabase.com) — Postgres, Auth e Storage, com RLS
   isolando os dados por usuário (cada MEI é seu próprio tenant)
-- [API da Anthropic](https://docs.claude.com) (`claude-opus-5`, com visão e
-  saída estruturada validada por schema) para leitura das notas
+- Leitura das notas por visão com **dois provedores intercambiáveis**:
+  [Anthropic](https://docs.claude.com) (`claude-opus-5`) e
+  [Google Gemini](https://ai.google.dev) (`gemini-2.5-flash`), ambos com
+  saída estruturada validada pelo mesmo schema
 - PIX gerado localmente no padrão BR Code do Banco Central — sem
   intermediário financeiro; o dinheiro cai direto na conta do MEI
 - Deploy contínuo via Vercel a partir da branch principal
@@ -78,12 +80,30 @@ lib/
   formato.ts                    — moeda, datas e competência em pt-BR
   pix.ts                        — geração de BR Code (EMV) com CRC16
   whatsapp.ts                   — link wa.me com mensagem pronta
-  ocr.ts                        — leitura da nota por visão
+  ocr/                          — leitura da nota por visão
+    schema.ts                   — contrato Zod compartilhado pelos provedores
+    claude.ts, gemini.ts        — implementações
+    index.ts                    — escolha do provedor e reserva automática
   auth.ts                       — guarda de sessão das Server Actions
   supabase/                     — clients (browser/server)
 supabase/migrations/            — schema do banco com RLS
 tests/                          — testes das regras de dinheiro e PIX
 ```
+
+## Escolhendo a IA que lê as notas
+
+O provedor é definido por `IA_PROVEDOR` (`claude`, o padrão, ou `gemini`). Se
+o preferido falhar por indisponibilidade — sem chave, fora do ar, cota
+estourada — o outro assume automaticamente, desde que também tenha chave. Uma
+foto ilegível, ao contrário, interrompe na hora: trocar de provedor não
+melhora uma imagem borrada.
+
+Basta uma das duas chaves para o recurso funcionar. Configurar as duas compra
+tolerância a falha de um fornecedor — o que importa quando a leitura da nota é
+a promessa central do produto.
+
+Os modelos podem ser sobrescritos por `CLAUDE_MODELO` e `GEMINI_MODELO`, útil
+para trocar de faixa de preço sem mexer no código.
 
 ## Decisões que valem registro
 
@@ -97,6 +117,9 @@ tests/                          — testes das regras de dinheiro e PIX
   acesso é isolado por pasta de usuário nas policies do Storage.
 - **A numeração de recibos é por usuário.** A `serial` global do schema
   inicial vazava o volume da plataforma entre contas.
+- **Um schema Zod serve os dois provedores de IA.** Vira formato estruturado
+  no Claude e JSON Schema no Gemini, e valida as duas respostas — trocar de
+  provedor não muda o que o resto do app recebe.
 
 ## Próximos passos
 
