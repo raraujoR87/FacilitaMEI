@@ -1,3 +1,5 @@
+import { lerNumeroBR } from "@/lib/formato";
+
 /** Resultado padrão das Server Actions, consumido por `useActionState`. */
 export type EstadoForm = {
   erro?: string;
@@ -6,11 +8,17 @@ export type EstadoForm = {
 
 export const ESTADO_INICIAL: EstadoForm = {};
 
-/** Converte o campo de valor (enviado em reais, com ponto decimal) em número. */
+/**
+ * Converte um campo de dinheiro em número.
+ *
+ * Usa o parser de pt-BR porque nem todo campo passa pela máscara de
+ * centavos: em campo de texto livre a pessoa digita "76,00", e `Number()`
+ * devolveria NaN — o valor não salvaria, sem erro nenhum na tela.
+ */
 export function lerValor(formData: FormData, campo = "valor"): number | null {
   const bruto = String(formData.get(campo) ?? "").trim();
   if (!bruto) return null;
-  const numero = Number(bruto);
+  const numero = lerNumeroBR(bruto);
   if (!Number.isFinite(numero) || numero < 0) return null;
   // Centavos são a menor unidade que faz sentido aqui.
   return Math.round(numero * 100) / 100;

@@ -10,7 +10,7 @@ export default async function ConfiguracoesPage() {
   const { data: perfil } = await supabase
     .from("perfis")
     .select(
-      `nome_negocio, cnpj, data_abertura_mei, municipio, uf, telefone_whatsapp, chave_pix, tipo_chave_pix, nome_titular_pix, cidade_pix, logo_url, cor_marca, ${COLUNAS_PLANO}`
+      `nome_negocio, cnpj, data_abertura_mei, valor_das, municipio, uf, telefone_whatsapp, chave_pix, tipo_chave_pix, nome_titular_pix, cidade_pix, logo_url, cor_marca, ${COLUNAS_PLANO}`
     )
     .eq("id", user.id)
     .single();
@@ -27,6 +27,7 @@ export default async function ConfiguracoesPage() {
             nome_negocio: "",
             cnpj: null,
             data_abertura_mei: null,
+            valor_das: null,
             municipio: null,
             uf: null,
             telefone_whatsapp: null,

@@ -373,6 +373,27 @@ garante que dois cliques não virem duas cobranças do mesmo serviço.
 receber inflava o número com aquilo que ninguém se comprometeu a pagar — era
 erro contábil, não de tela.
 
+## "Quanto desse dinheiro é meu?"
+
+É a pergunta que faz o MEI misturar a conta pessoal com a do negócio: ele
+olha o saldo do banco, não sabe quanto já tem dono, e tira no escuro.
+
+O painel no topo do dashboard responde com a conta aberta — entrou, custos
+do negócio, quanto já foi retirado, imposto reservado. Número sobre dinheiro
+sem a conta à vista ninguém confia.
+
+Duas regras que não são óbvias:
+
+- **A retirada do dono sai dos custos.** Ela é destino do lucro, não gasto
+  do negócio, e misturar as duas some com a margem no relatório.
+- **Pagar o DAS não muda o disponível.** Enquanto não é pago ele aparece
+  como reserva; pago, vira custo e a reserva zera. O saldo é o mesmo antes e
+  depois, porque o dinheiro já estava comprometido. A primeira versão
+  errava isso e o disponível *subia* ao pagar o imposto — há teste cobrindo.
+
+O valor do DAS é informado pelo usuário, não fixado no código: muda todo ano
+com o salário mínimo e varia conforme a atividade.
+
 ## Decisões que valem registro
 
 - **Server Actions revalidam a sessão.** O `proxy.ts` protege a navegação,

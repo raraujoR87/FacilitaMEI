@@ -98,6 +98,14 @@ export function estaVencido(dataVencimento: string | null): boolean {
  * silenciosamente e o recibo saía com valor menor que o combinado.
  */
 export function lerNumeroBR(texto: string): number {
-  const n = Number(String(texto).trim().replace(",", "."));
+  const limpo = String(texto).trim();
+  // Havendo vírgula, ela é o separador decimal e o ponto é de milhar:
+  // "1.234,56" precisa virar 1234.56, não NaN. Sem vírgula, o ponto já é
+  // decimal e fica como está.
+  const normalizado = limpo.includes(",")
+    ? limpo.replace(/\./g, "").replace(",", ".")
+    : limpo;
+
+  const n = Number(normalizado);
   return Number.isFinite(n) ? n : 0;
 }

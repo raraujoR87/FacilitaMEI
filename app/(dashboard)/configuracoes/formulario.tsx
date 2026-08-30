@@ -10,6 +10,7 @@ export type Perfil = {
   nome_negocio: string;
   cnpj: string | null;
   data_abertura_mei: string | null;
+  valor_das: number | null;
   municipio: string | null;
   uf: string | null;
   telefone_whatsapp: string | null;
@@ -52,6 +53,14 @@ export function FormularioPerfil({ perfil }: { perfil: Perfil }) {
             dica="No ano de abertura o teto do MEI é proporcional aos meses de atividade."
           />
         </div>
+
+        <Campo
+          nome="valor_das"
+          label="Valor do DAS por mês"
+          inputMode="decimal"
+          valorInicial={perfil.valor_das != null ? String(perfil.valor_das) : null}
+          dica="Está no boleto que você paga todo mês. Muda por ano e por atividade, por isso não vem preenchido."
+        />
 
         <div className="grid gap-4 sm:grid-cols-[1fr_5rem]">
           <Campo nome="municipio" label="Município" valorInicial={perfil.municipio} dica="Aparece no recibo e é exigido na NFS-e." />

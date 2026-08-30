@@ -94,6 +94,8 @@ test("lerNumeroBR aceita a vírgula decimal do teclado brasileiro", () => {
   assert.equal(lerNumeroBR("7.5"), 7.5);
   assert.equal(lerNumeroBR("6"), 6);
   assert.equal(lerNumeroBR(" 2,25 "), 2.25);
+  assert.equal(lerNumeroBR("1.234,56"), 1234.56, "ponto de milhar com vírgula decimal");
+  assert.equal(lerNumeroBR("76,00"), 76);
   assert.equal(lerNumeroBR("abc"), 0, "texto inválido vira zero, não NaN");
   assert.equal(lerNumeroBR(""), 0);
 });

@@ -5,12 +5,15 @@ import {
   estaVencido,
   formatarData,
   formatarMoeda,
+  hoje,
   intervaloDoMes,
   mesAtual,
   rotuloMes,
 } from "@/lib/formato";
 import { Recibo, Vazio } from "@/components/ui/campos";
 import { PainelTeto } from "@/components/ui/painel-teto";
+import { PainelCaixa } from "@/components/ui/painel-caixa";
+import { avisoDas, CATEGORIA_DAS, CATEGORIA_RETIRADA, situacaoDoCaixa } from "@/lib/caixa";
 import { situacaoTeto, tetoAplicavel, tetoDoAno } from "@/lib/mei";
 
 export default async function DashboardPage() {
@@ -45,10 +48,53 @@ export default async function DashboardPage() {
       .lte("data_competencia", `${ano}-12-31`),
     supabase
       .from("perfis")
-      .select("data_abertura_mei")
+      .select("data_abertura_mei, valor_das")
       .eq("id", user.id)
       .single(),
   ]);
+
+  // O mês separado por natureza: custo do negócio, retirada do dono e
+  // imposto são coisas diferentes, e somá-las esconde a resposta.
+  const { data: doMes } = await supabase
+    .from("lancamentos")
+    .select("valor, tipo, categorias(nome)")
+    .eq("user_id", user.id)
+    .gte("data_competencia", inicio)
+    .lte("data_competencia", fim);
+
+  const linhas = (doMes ?? []) as {
+    valor: number;
+    tipo: string;
+    categorias: { nome: string } | { nome: string }[] | null;
+  }[];
+
+  const nomeCategoria = (c: (typeof linhas)[number]["categorias"]) =>
+    (Array.isArray(c) ? c[0] : c)?.nome ?? "";
+
+  const somaSe = (filtro: (l: (typeof linhas)[number]) => boolean) =>
+    linhas.filter(filtro).reduce((s, l) => s + Number(l.valor), 0);
+
+  const retiradas = somaSe(
+    (l) => l.tipo === "despesa" && nomeCategoria(l.categorias) === CATEGORIA_RETIRADA
+  );
+  const dasPagoNoMes = linhas.some(
+    (l) => l.tipo === "despesa" && nomeCategoria(l.categorias) === CATEGORIA_DAS
+  );
+  // Só a retirada sai dos custos — ela é destino do lucro, não gasto do
+  // negócio. O DAS entra: enquanto não é pago ele aparece como reserva e
+  // não existe lançamento; pago, vira custo e a reserva zera. Excluí-lo
+  // aqui fazia o disponível SUBIR ao pagar o imposto.
+  const custos = somaSe(
+    (l) => l.tipo === "despesa" && nomeCategoria(l.categorias) !== CATEGORIA_RETIRADA
+  );
+
+  const caixa = situacaoDoCaixa({
+    entradas: somaSe((l) => l.tipo === "receita"),
+    saidasOperacionais: custos,
+    retiradas,
+    valorDas: perfil?.valor_das ?? null,
+    dasPago: dasPagoNoMes,
+  });
 
   const faturamentoAnual = (doAno ?? []).reduce((s, l) => s + Number(l.valor), 0);
   const teto = situacaoTeto(faturamentoAnual, ano, perfil?.data_abertura_mei);
@@ -93,6 +139,8 @@ export default async function DashboardPage() {
           </span>
         </Link>
       )}
+
+      <PainelCaixa caixa={caixa} das={avisoDas(hoje(), dasPagoNoMes)} valorDas={perfil?.valor_das ?? null} />
 
       <PainelTeto
         situacao={teto}

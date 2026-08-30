@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { exigirUsuario } from "@/lib/auth";
-import { type EstadoForm, lerOpcional, lerTexto } from "@/app/actions/tipos";
+import { type EstadoForm, lerOpcional, lerTexto, lerValor } from "@/app/actions/tipos";
 
 const TIPOS_CHAVE = ["cpf", "cnpj", "email", "telefone", "aleatoria"];
 
@@ -35,6 +35,7 @@ export async function atualizarPerfil(
       nome_negocio: nomeNegocio,
       cnpj: lerOpcional(formData, "cnpj"),
       data_abertura_mei: lerOpcional(formData, "data_abertura_mei"),
+      valor_das: lerValor(formData, "valor_das"),
       municipio: lerOpcional(formData, "municipio"),
       uf: lerOpcional(formData, "uf")?.toUpperCase().slice(0, 2) || null,
       telefone_whatsapp: lerOpcional(formData, "telefone_whatsapp"),
