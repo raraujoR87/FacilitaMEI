@@ -8,6 +8,8 @@ import { Carimbo } from "@/components/ui/campos";
 import { BotaoCopiar } from "@/components/ui/botao-copiar";
 import { BotaoImprimir } from "@/app/(dashboard)/relatorio/botao-imprimir";
 import { formatarMomento } from "@/lib/admin";
+import { temRecurso } from "@/lib/planos";
+import { Compartilhar } from "./compartilhar";
 
 type Item = {
   descricao: string;
@@ -29,6 +31,7 @@ type Documento = {
   data_vencimento: string | null;
   observacoes: string | null;
   nf_numero: string | null;
+  token_publico: string | null;
   clientes: { nome: string; documento: string | null; telefone: string | null } | null;
   itens_documento: Item[];
 };
@@ -48,7 +51,7 @@ export default async function ReciboPage({
     supabase
       .from("documentos_venda")
       .select(
-        "id, numero, tipo, natureza, descricao_servico, valor, status, data_emissao, data_vencimento, observacoes, nf_numero, clientes(nome, documento, telefone), itens_documento(descricao, quantidade, unidade, valor_unitario, total)"
+        "id, numero, tipo, natureza, descricao_servico, valor, status, data_emissao, data_vencimento, observacoes, nf_numero, token_publico, clientes(nome, documento, telefone), itens_documento(descricao, quantidade, unidade, valor_unitario, total)"
       )
       .eq("id", id)
       .eq("user_id", user.id)
@@ -56,7 +59,7 @@ export default async function ReciboPage({
     supabase
       .from("perfis")
       .select(
-        "nome_negocio, cnpj, municipio, uf, chave_pix, tipo_chave_pix, nome_titular_pix, cidade_pix"
+        "nome_negocio, cnpj, municipio, uf, chave_pix, tipo_chave_pix, nome_titular_pix, cidade_pix, logo_url, cor_marca, plano, plano_expira_em"
       )
       .eq("id", user.id)
       .single(),
@@ -119,6 +122,14 @@ export default async function ReciboPage({
 
       <article className="fita-recibo px-6 py-8 md:px-10 md:py-10">
         <header className="text-center">
+          {perfil?.logo_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={perfil.logo_url}
+              alt={perfil.nome_negocio ?? ""}
+              className="max-h-16 mx-auto mb-3 object-contain"
+            />
+          )}
           <p style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}>
             {perfil?.nome_negocio ?? "Meu negócio"}
           </p>
@@ -138,7 +149,10 @@ export default async function ReciboPage({
             className="text-xs uppercase tracking-widest mt-4"
             style={{ color: "var(--tinta-suave)" }}
           >
-            {titulo} nº {doc.numero} ·{" "}
+            <span style={{ color: perfil?.cor_marca ?? undefined }}>
+              {titulo} nº {doc.numero}
+            </span>{" "}
+            ·{" "}
             {doc.natureza === "servico" ? "Serviço prestado" : "Produto vendido"}
           </p>
           <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
@@ -207,7 +221,9 @@ export default async function ReciboPage({
 
         <div className="flex justify-between items-baseline">
           <span className="font-semibold">Total</span>
-          <span className="valor text-xl">{formatarMoeda(Number(doc.valor))}</span>
+          <span className="valor text-xl" style={{ color: perfil?.cor_marca ?? undefined }}>
+            {formatarMoeda(Number(doc.valor))}
+          </span>
         </div>
 
         {doc.data_vencimento && doc.status === "pendente" && (
@@ -248,6 +264,13 @@ export default async function ReciboPage({
           </div>
         )}
       </article>
+
+      <Compartilhar
+        id={doc.id}
+        tokenExistente={doc.token_publico}
+        liberado={temRecurso(perfil, "linkPublico")}
+        ehOrcamento={doc.tipo === "orcamento"}
+      />
 
       {historico && historico.length > 0 && (
         <section className="mt-6 nao-imprimir">

@@ -288,6 +288,38 @@ dados. O histórico aparece na própria tela do documento, e captura até as
 mudanças causadas por outros gatilhos — trocar um item recalcula o total, e
 isso também fica registrado.
 
+## O que separa o grátis do Pro
+
+O Pro tinha um único argumento — mais notas lidas por IA — e era justamente
+o que o cliente contornava lançando manualmente. Conversão baixa por
+desenho, não por preço.
+
+O critério novo: **nada foi tirado de quem já usa o grátis**. Tirar recurso
+de quem entrou confiando gera churn e razão. O Pro acrescenta duas coisas
+que o grátis não tem, e ambas escolhidas por um motivo:
+
+**O que o cliente DO cliente enxerga.** O recibo é a única peça do sistema
+que sai da mão do MEI e chega em outra pessoa. Logo e cor da marca no
+documento, e o link `/r/[token]` que o cliente abre no celular com o PIX
+embutido — e, sendo orçamento, aceita ali mesmo. Recurso interno não
+converte; imagem perante o cliente e dinheiro entrando mais rápido, sim.
+
+**O que antecipa decisão.** Projeção do teto e relatório de qualquer
+período, contra o relatório do mês no grátis.
+
+### A trava está no banco, não na tela
+
+Esconder o botão nunca foi controle de acesso. Como a RLS permite ao dono
+atualizar o próprio documento, um usuário grátis podia gravar
+`token_publico` pela API REST com a própria sessão e levar o recurso pago de
+graça. Gatilhos em `documentos_venda` e `perfis` recusam a operação —
+verificado que o grátis é bloqueado, que operação normal dele continua
+funcionando e que o Pro passa.
+
+O link público é lido por uma função `security definer` que devolve só o que
+precisa aparecer: nem CPF, nem telefone, nem e-mail do cliente trafegam para
+quem abriu o link. Verificado que anônimo lê zero linhas das tabelas direto.
+
 ## Decisões que valem registro
 
 - **Server Actions revalidam a sessão.** O `proxy.ts` protege a navegação,

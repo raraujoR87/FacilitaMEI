@@ -42,24 +42,57 @@ export const PLANOS: Record<IdPlano, Plano> = {
       "Lançamentos manuais ilimitados",
       "Recibos e orçamentos com numeração própria",
       "Cobrança com PIX copia e cola",
-      "Relatório mensal em PDF e planilha",
+      "Relatório do mês em PDF e planilha",
+      "Alerta do teto do MEI",
     ],
   },
   pro: {
     id: "pro",
     nome: "Pro",
-    chamada: "Para quem não quer nem pensar em planilha",
+    chamada: "Para quem quer parecer — e ser — profissional",
     precoMensal: 29.9,
     precoAnual: 24.9,
     limiteNotas: null,
     destaques: [
-      "Notas lidas por foto sem limite",
+      "Seu logo e sua cor no recibo",
+      "Link do recibo para mandar no WhatsApp, com PIX embutido",
+      "Cliente aceita o orçamento pelo link",
+      "Projeção do teto: saiba em que mês você chega no limite",
+      "Relatório de qualquer período, não só do mês",
+      `Até ${LIMITE_NOTAS_PRO} notas lidas por foto no mês`,
       "Tudo do plano grátis",
-      "Envio da cobrança pelo WhatsApp",
-      "Suporte por WhatsApp",
     ],
   },
 };
+
+/**
+ * Recursos que separam os planos.
+ *
+ * O critério: o grátis continua sendo uma ferramenta completa — nada foi
+ * tirado de quem já usa. O Pro acrescenta o que o CLIENTE do MEI enxerga
+ * (recibo com a marca, link para abrir no celular, aceite do orçamento) e o
+ * que antecipa decisão (projeção do teto, relatório de qualquer período).
+ * Recurso interno não converte; imagem perante o cliente e dinheiro que
+ * entra mais rápido, sim.
+ */
+export const RECURSOS_PRO = [
+  "marcaNoRecibo",
+  "linkPublico",
+  "aceiteOrcamento",
+  "projecaoTeto",
+  "relatorioLivre",
+] as const;
+
+export type Recurso = (typeof RECURSOS_PRO)[number];
+
+export function temRecurso(
+  perfil: PerfilPlano | null | undefined,
+  recurso: Recurso
+): boolean {
+  // Recurso fora da lista é livre. Hoje a lista cobre tudo que é do Pro,
+  // mas passar por ela deixa a liberação de um item futuro ser uma linha.
+  return RECURSOS_PRO.includes(recurso) && planoEfetivo(perfil) === "pro";
+}
 
 export type PerfilPlano = {
   plano: string | null;

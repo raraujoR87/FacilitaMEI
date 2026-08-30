@@ -7,6 +7,7 @@ import {
   HandCoins,
   Lock,
   Receipt,
+  Share2,
   Sparkles,
   TrendingUp,
   Users,
@@ -278,6 +279,12 @@ function Modulos() {
       Icone: HandCoins,
       titulo: "Cobrança",
       texto: "PIX copia e cola gerado na hora e cobrança pelo WhatsApp em um toque.",
+    },
+    {
+      Icone: Share2,
+      titulo: "Link para o cliente",
+      texto:
+        "No Pro, o recibo vira um link com a sua marca: o cliente abre no celular e paga ali mesmo.",
     },
     {
       Icone: Users,
