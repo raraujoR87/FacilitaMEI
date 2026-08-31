@@ -79,7 +79,6 @@ export const PLANOS: Record<IdPlano, Plano> = {
       "Link do recibo para mandar no WhatsApp, com PIX embutido",
       "Cliente aceita o orçamento pelo link",
       "Clientes, itens e contas fixas sem limite",
-      "Relatório de qualquer período, não só do mês",
       `Até ${LIMITE_NOTAS_PRO} despesas lidas por foto no mês`,
       "Tudo do plano grátis",
     ],
@@ -90,18 +89,21 @@ export const PLANOS: Record<IdPlano, Plano> = {
  * Recursos que separam os planos.
  *
  * O critério: o grátis continua sendo uma ferramenta completa — nada foi
- * tirado de quem já usa. O Pro acrescenta o que o CLIENTE do MEI enxerga
- * (recibo com a marca, link para abrir no celular, aceite do orçamento) e o
- * que antecipa decisão (projeção do teto, relatório de qualquer período).
+ * tirado de quem já usa. O Pro acrescenta o que o CLIENTE do MEI enxerga:
+ * recibo com a marca, link para abrir no celular, aceite do orçamento.
  * Recurso interno não converte; imagem perante o cliente e dinheiro que
- * entra mais rápido, sim.
+ * entra mais rápido, sim. O resto da separação é escala, em LIMITES_FREE.
+ *
+ * Esta lista só admite o que existe. Ela já teve "projecaoTeto" e
+ * "relatorioLivre", que nunca foram construídos e mesmo assim apareciam na
+ * tela de vendas: ninguém checava os dois em lugar nenhum, então não havia
+ * erro para denunciar a promessa vazia. Vender o que não existe é a única
+ * dívida técnica que se cobra em confiança.
  */
 export const RECURSOS_PRO = [
   "marcaNoRecibo",
   "linkPublico",
   "aceiteOrcamento",
-  "projecaoTeto",
-  "relatorioLivre",
 ] as const;
 
 export type Recurso = (typeof RECURSOS_PRO)[number];
