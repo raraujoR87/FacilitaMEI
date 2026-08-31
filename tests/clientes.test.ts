@@ -9,6 +9,7 @@ import {
 
 const base: MetricaCliente = {
   cliente_id: "x", nome: "Fulano", documento: null, telefone: null,
+  email: null, observacoes: null, arquivado_em: null,
   documentos: 0, total_pago: 0, total_aberto: 0, total_vencido: 0,
   ticket_medio: 0, primeira_compra: null, ultima_compra: null,
   dias_desde_ultima: null, intervalo_medio_dias: null, pagou_com_atraso: 0,

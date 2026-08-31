@@ -14,7 +14,12 @@ import {
 } from "@/lib/clientes";
 import { Recibo, Vazio } from "@/components/ui/campos";
 import { BotaoSubmit } from "@/components/ui/botao-submit";
-import { FormularioCliente } from "./formulario";
+import {
+  ArquivarCliente,
+  EditarCliente,
+  FormularioCliente,
+  ReativarCliente,
+} from "./formulario";
 
 export default async function ClientesPage() {
   const { supabase } = await exigirUsuario();
@@ -24,27 +29,33 @@ export default async function ClientesPage() {
   const { data } = await supabase.rpc("metricas_clientes");
   const clientes = (data ?? []) as MetricaCliente[];
 
-  const comSituacao = clientes.map((c) => ({ m: c, situacao: situacaoDoCliente(c) }));
+  // Arquivado sai de tudo que é leitura de carteira: ranking, alertas e
+  // totais. Ele continua no banco só para o recibo antigo não perder o
+  // nome — contá-lo faria a carteira parecer maior do que é.
+  const ativos = clientes.filter((c) => c.arquivado_em === null);
+  const arquivados = clientes.filter((c) => c.arquivado_em !== null);
+
+  const comSituacao = ativos.map((c) => ({ m: c, situacao: situacaoDoCliente(c) }));
   const devendo = comSituacao.filter((c) => c.situacao === "devendo");
   const sumidos = comSituacao.filter((c) => c.situacao === "sumido");
 
-  const faturadoTotal = clientes.reduce((s, c) => s + Number(c.total_pago), 0);
-  const emAberto = clientes.reduce((s, c) => s + Number(c.total_aberto), 0);
-  const compradores = clientes.filter((c) => c.documentos > 0);
+  const faturadoTotal = ativos.reduce((s, c) => s + Number(c.total_pago), 0);
+  const emAberto = ativos.reduce((s, c) => s + Number(c.total_aberto), 0);
+  const compradores = ativos.filter((c) => c.documentos > 0);
   const ticketGeral =
     compradores.length > 0
       ? faturadoTotal / compradores.reduce((s, c) => s + Number(c.documentos), 0)
       : 0;
 
-  const maiores = clientes.filter((c) => Number(c.total_pago) > 0).slice(0, 5);
+  const maiores = ativos.filter((c) => Number(c.total_pago) > 0).slice(0, 5);
   const maiorValor = maiores.length > 0 ? Number(maiores[0].total_pago) : 0;
 
-  const custoTotal = clientes.reduce((s, c) => s + Number(c.custo_atribuido), 0);
+  const custoTotal = ativos.reduce((s, c) => s + Number(c.custo_atribuido), 0);
   const lucroTotal = faturadoTotal - custoTotal;
   const temCusto = custoTotal > 0;
-  const inversao = rankingTemInversao(clientes);
+  const inversao = rankingTemInversao(ativos);
   const campeaoDoLucro = temCusto
-    ? [...clientes].sort((a, b) => Number(b.lucro) - Number(a.lucro))[0]
+    ? [...ativos].sort((a, b) => Number(b.lucro) - Number(a.lucro))[0]
     : null;
 
   return (
@@ -53,10 +64,11 @@ export default async function ClientesPage() {
         Clientes
       </h1>
       <p className="text-sm mb-6" style={{ color: "var(--tinta-suave)" }}>
-        {clientes.length} cadastrado(s) · {compradores.length} já compraram
+        {ativos.length} cadastrado(s) · {compradores.length} já compraram
+        {arquivados.length > 0 && ` · ${arquivados.length} arquivado(s)`}
       </p>
 
-      {clientes.length > 0 && (
+      {ativos.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <Cartao rotulo="Já faturado" valor={formatarMoeda(faturadoTotal)} cor="var(--positivo)" />
           <Cartao rotulo="A receber" valor={formatarMoeda(emAberto)} cor="var(--pendente)" />
@@ -165,7 +177,7 @@ export default async function ClientesPage() {
       <FormularioCliente />
 
       <Recibo titulo="Todos os clientes">
-        {clientes.length === 0 ? (
+        {ativos.length === 0 ? (
           <Vazio>
             Nenhum cliente cadastrado. Cadastrar aqui permite vincular recibos,
             saber quem mais compra e quem está devendo.
@@ -193,7 +205,7 @@ export default async function ClientesPage() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0 text-right">
+                  <div className="flex items-start gap-2 shrink-0 text-right">
                     <div>
                       {Number(m.total_pago) > 0 && (
                         <p className="valor" style={{ color: "var(--positivo)" }}>
@@ -206,15 +218,31 @@ export default async function ClientesPage() {
                         </p>
                       )}
                     </div>
-                    {/* Excluir só quem nunca comprou: apagar cliente com
-                        histórico deixaria recibos órfãos de nome. */}
-                    {m.documentos === 0 && (
+
+                    <EditarCliente
+                      cliente={{
+                        id: m.cliente_id,
+                        nome: m.nome,
+                        documento: m.documento,
+                        telefone: m.telefone,
+                        email: m.email,
+                        observacoes: m.observacoes,
+                      }}
+                    />
+
+                    {/* Excluir de verdade só para quem nunca comprou: a
+                        chave estrangeira é `set null` e o recibo ficaria
+                        sem nome. Quem tem histórico é arquivado — e o
+                        banco recusa o contrário, por gatilho. */}
+                    {m.documentos === 0 ? (
                       <form action={excluirCliente}>
                         <input type="hidden" name="id" value={m.cliente_id} />
                         <BotaoSubmit variante="discreto" carregando="...">
                           Excluir
                         </BotaoSubmit>
                       </form>
+                    ) : (
+                      <ArquivarCliente id={m.cliente_id} />
                     )}
                   </div>
                 </div>
@@ -223,6 +251,38 @@ export default async function ClientesPage() {
           </div>
         )}
       </Recibo>
+
+      {arquivados.length > 0 && (
+        <details className="mt-6">
+          <summary className="text-sm cursor-pointer" style={{ color: "var(--tinta-suave)" }}>
+            {arquivados.length} cliente(s) arquivado(s)
+          </summary>
+          <div
+            className="mt-2 rounded-lg border divide-y"
+            style={{ borderColor: "var(--borda)", background: "#fff" }}
+          >
+            {arquivados.map((m) => (
+              <div
+                key={m.cliente_id}
+                className="px-5 py-3 flex flex-wrap justify-between items-center gap-3 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate">{m.nome}</p>
+                  <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
+                    {m.documentos} compra(s) · {formatarMoeda(Number(m.total_pago))} no
+                    histórico
+                  </p>
+                </div>
+                <ReativarCliente id={m.cliente_id} />
+              </div>
+            ))}
+          </div>
+          <p className="dica">
+            Arquivado não conta no limite do plano e some da carteira, mas os
+            recibos antigos continuam com o nome.
+          </p>
+        </details>
+      )}
     </div>
   );
 }

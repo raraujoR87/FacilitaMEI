@@ -10,6 +10,10 @@ export type MetricaCliente = {
   nome: string;
   documento: string | null;
   telefone: string | null;
+  email: string | null;
+  observacoes: string | null;
+  /** Cliente que não se atende mais: sai da lista e da contagem do plano. */
+  arquivado_em: string | null;
   documentos: number;
   total_pago: number;
   total_aberto: number;
