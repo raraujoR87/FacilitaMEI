@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Briefcase, FileWarning, Package } from "lucide-react";
 import { exigirUsuario } from "@/lib/auth";
-import { excluirLancamento } from "@/app/actions/lancamentos";
 import {
   formatarData,
   formatarMoeda,
@@ -11,11 +10,10 @@ import {
 } from "@/lib/formato";
 import { situacaoFiscal, type Natureza } from "@/lib/fiscal";
 import { Recibo, Vazio } from "@/components/ui/campos";
-import { BotaoQueRemove, LinhaAcao } from "@/components/ui/linha-acao";
 import { SeletorMes } from "@/components/ui/seletor-mes";
 import { EnviarNota } from "./enviar-nota";
 import { Formularios } from "./formularios";
-import { EditarSaida } from "./editar-saida";
+import { LinhaMovimento } from "./linha-movimento";
 import { ContasFixas } from "./contas-fixas";
 import type { ContaFixa } from "@/lib/recorrentes";
 import { ehNaturezaSaida, SAIDA, type NaturezaSaida } from "@/lib/lancamentos";
@@ -293,85 +291,67 @@ function ItemMovimento({
   const fiscal = doc ? situacaoFiscal(doc.natureza, cliente?.documento) : null;
   const receita = linha.tipo === "receita";
 
+  // Formatar aqui mantém a linha burra: ela só troca resumo por
+  // formulário, sem saber de moeda, de natureza nem de regra fiscal.
+  const detalhe = [
+    formatarData(linha.data_competencia),
+    doc ? (doc.natureza === "servico" ? "Serviço" : "Produto") : null,
+    um(linha.categorias)?.nome ?? null,
+    linha.fornecedor_cliente,
+    linha.origem === "ocr" ? "lido da nota" : null,
+    receita && !doc ? "sem recibo" : null,
+    // Retirada e imposto precisam se distinguir de custo no extrato:
+    // somados visualmente, a pessoa acha que gastou mais no negócio do
+    // que gastou.
+    linha.natureza_saida && linha.natureza_saida !== "custo"
+      ? SAIDA[linha.natureza_saida as NaturezaSaida].rotulo
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <LinhaAcao className="flex flex-wrap justify-between items-start gap-3 py-3 text-sm">
-      <div className="min-w-0">
-        {doc ? (
-          <Link href={`/recibo/${doc.id}`} className="font-medium truncate block underline">
-            {linha.descricao}
-          </Link>
-        ) : (
-          <p className="font-medium truncate">{linha.descricao}</p>
-        )}
-        <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
-          {formatarData(linha.data_competencia)}
-          {doc && ` · ${doc.natureza === "servico" ? "Serviço" : "Produto"}`}
-          {um(linha.categorias) && ` · ${um(linha.categorias)!.nome}`}
-          {linha.fornecedor_cliente && ` · ${linha.fornecedor_cliente}`}
-          {linha.origem === "ocr" && " · lido da nota"}
-          {receita && !doc && " · sem recibo"}
-          {/* Retirada e imposto precisam se distinguir de custo no extrato:
-              somados visualmente, a pessoa acha que gastou mais no negócio
-              do que gastou. */}
-          {linha.natureza_saida && linha.natureza_saida !== "custo" && (
-            <> · {SAIDA[linha.natureza_saida as NaturezaSaida].rotulo}</>
-          )}
-        </p>
-
-        {custoDe && (
-          <Link
-            href={`/recibo/${custoDe.id}`}
-            className="text-xs underline"
-            style={{ color: "var(--tinta-suave)" }}
-          >
-            custo de #{custoDe.numero} · {custoDe.descricao_servico}
-          </Link>
-        )}
-
-        {fiscal?.obrigatoria && (
-          <p className="text-xs mt-1" style={{ color: doc?.nf_numero ? "var(--positivo)" : "var(--selo)" }}>
-            {doc?.nf_numero
-              ? `${fiscal.documento} ${doc.nf_numero} emitida`
-              : `${fiscal.documento} pendente`}
-          </p>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 shrink-0">
-        <span
-          className="valor"
-          style={{ color: receita ? "var(--positivo)" : "var(--selo)" }}
-        >
-          {receita ? "+" : "−"}
-          {formatarMoeda(Number(linha.valor))}
-        </span>
-
-        {/* Entrada não se apaga nem se edita solta: ela pertence a um recibo
-            numerado, e mexer aqui deixaria documento e lançamento divergentes.
-            A correção dela é feita no próprio recibo. */}
-        {!doc && (
-          <>
-            <EditarSaida
-              saida={{
-                id: linha.id,
-                descricao: linha.descricao,
-                valor: Number(linha.valor),
-                data_competencia: linha.data_competencia,
-                fornecedor_cliente: linha.fornecedor_cliente,
-                categoria_id: linha.categoria_id,
-                custo_de_documento_id: linha.custo_de_documento_id,
-                natureza_saida: linha.natureza_saida,
-              }}
-              categorias={categorias}
-              trabalhos={trabalhos}
-            />
-            <BotaoQueRemove acao={excluirLancamento} id={linha.id} variante="discreto">
-              Excluir
-            </BotaoQueRemove>
-          </>
-        )}
-      </div>
-    </LinhaAcao>
+    <LinhaMovimento
+      titulo={linha.descricao}
+      href={doc ? `/recibo/${doc.id}` : null}
+      detalhe={detalhe}
+      fiscal={
+        fiscal?.obrigatoria
+          ? {
+              texto: doc?.nf_numero
+                ? `${fiscal.documento} ${doc.nf_numero} emitida`
+                : `${fiscal.documento} pendente`,
+              cor: doc?.nf_numero ? "var(--positivo)" : "var(--selo)",
+            }
+          : null
+      }
+      custoDe={
+        custoDe
+          ? {
+              href: `/recibo/${custoDe.id}`,
+              texto: `custo de #${custoDe.numero} · ${custoDe.descricao_servico}`,
+            }
+          : null
+      }
+      valor={`${receita ? "+" : "−"}${formatarMoeda(Number(linha.valor))}`}
+      valorCor={receita ? "var(--positivo)" : "var(--selo)"}
+      saida={
+        doc
+          ? null
+          : {
+              id: linha.id,
+              descricao: linha.descricao,
+              valor: Number(linha.valor),
+              data_competencia: linha.data_competencia,
+              fornecedor_cliente: linha.fornecedor_cliente,
+              categoria_id: linha.categoria_id,
+              custo_de_documento_id: linha.custo_de_documento_id,
+              natureza_saida: linha.natureza_saida,
+            }
+      }
+      categorias={categorias}
+      trabalhos={trabalhos}
+    />
   );
 }
 

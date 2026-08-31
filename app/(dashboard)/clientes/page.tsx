@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, PhoneOff, Trophy } from "lucide-react";
 import { exigirUsuario } from "@/lib/auth";
-import { excluirCliente } from "@/app/actions/clientes";
 import { formatarData, formatarMoeda } from "@/lib/formato";
 import { formatarDocumento, tipoPessoa } from "@/lib/fiscal";
 import { linkWhatsApp } from "@/lib/whatsapp";
@@ -13,13 +12,8 @@ import {
   type MetricaCliente,
 } from "@/lib/clientes";
 import { Recibo, Vazio } from "@/components/ui/campos";
-import { BotaoQueRemove, LinhaAcao } from "@/components/ui/linha-acao";
-import {
-  ArquivarCliente,
-  EditarCliente,
-  FormularioCliente,
-  ReativarCliente,
-} from "./formulario";
+import { FormularioCliente, ReativarCliente } from "./formulario";
+import { LinhaCliente } from "./linha-cliente";
 
 export default async function ClientesPage() {
   const { supabase } = await exigirUsuario();
@@ -186,70 +180,39 @@ export default async function ClientesPage() {
           <div className="flex flex-col divide-y" style={{ borderColor: "var(--borda)" }}>
             {comSituacao.map(({ m, situacao }) => {
               const rotulo = ROTULO_SITUACAO[situacao];
+              // Formatar aqui mantém a linha do cliente burra: ela só troca
+              // resumo por formulário, sem saber de moeda nem de CPF.
+              const detalhe = [
+                m.documento
+                  ? `${formatarDocumento(m.documento)} · ${
+                      tipoPessoa(m.documento) === "juridica" ? "empresa" : "pessoa física"
+                    }`
+                  : "sem CPF/CNPJ",
+                m.ultima_compra ? `última em ${formatarData(m.ultima_compra)}` : null,
+                m.pagou_com_atraso > 0 ? `atrasou ${m.pagou_com_atraso}x` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ");
+
               return (
-                <LinhaAcao
+                <LinhaCliente
                   key={m.cliente_id}
-                  className="flex justify-between items-start gap-3 py-3 text-sm"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">
-                      {m.nome}{" "}
-                      <span className="text-xs font-normal" style={{ color: rotulo.cor }}>
-                        · {rotulo.texto}
-                      </span>
-                    </p>
-                    <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
-                      {m.documento
-                        ? `${formatarDocumento(m.documento)} · ${tipoPessoa(m.documento) === "juridica" ? "empresa" : "pessoa física"}`
-                        : "sem CPF/CNPJ"}
-                      {m.ultima_compra && ` · última em ${formatarData(m.ultima_compra)}`}
-                      {m.pagou_com_atraso > 0 &&
-                        ` · atrasou ${m.pagou_com_atraso}x`}
-                    </p>
-                  </div>
-
-                  <div className="flex items-start gap-2 shrink-0 text-right">
-                    <div>
-                      {Number(m.total_pago) > 0 && (
-                        <p className="valor" style={{ color: "var(--positivo)" }}>
-                          {formatarMoeda(Number(m.total_pago))}
-                        </p>
-                      )}
-                      {Number(m.total_aberto) > 0 && (
-                        <p className="valor text-xs" style={{ color: "var(--pendente)" }}>
-                          {formatarMoeda(Number(m.total_aberto))} em aberto
-                        </p>
-                      )}
-                    </div>
-
-                    <EditarCliente
-                      cliente={{
-                        id: m.cliente_id,
-                        nome: m.nome,
-                        documento: m.documento,
-                        telefone: m.telefone,
-                        email: m.email,
-                        observacoes: m.observacoes,
-                      }}
-                    />
-
-                    {/* Excluir de verdade só para quem nunca comprou: a
-                        chave estrangeira é `set null` e o recibo ficaria
-                        sem nome. Quem tem histórico é arquivado — e o
-                        banco recusa o contrário, por gatilho. */}
-                    {m.documentos === 0 ? (
-                      <BotaoQueRemove
-                        acao={excluirCliente}
-                        id={m.cliente_id}
-                        variante="discreto"
-                      >
-                        Excluir
-                      </BotaoQueRemove>
-                    ) : (
-                      <ArquivarCliente id={m.cliente_id} />
-                    )}
-                  </div>
-                </LinhaAcao>
+                  cliente={{
+                    id: m.cliente_id,
+                    nome: m.nome,
+                    documento: m.documento,
+                    telefone: m.telefone,
+                    email: m.email,
+                    observacoes: m.observacoes,
+                  }}
+                  situacao={rotulo}
+                  detalhe={detalhe}
+                  pago={Number(m.total_pago) > 0 ? formatarMoeda(Number(m.total_pago)) : null}
+                  aberto={
+                    Number(m.total_aberto) > 0 ? formatarMoeda(Number(m.total_aberto)) : null
+                  }
+                  podeExcluir={m.documentos === 0}
+                />
               );
             })}
           </div>
