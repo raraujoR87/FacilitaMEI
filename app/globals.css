@@ -136,6 +136,19 @@ body {
   opacity: 0.55;
   cursor: progress;
 }
+/* O clique precisa responder na hora, mesmo quando o servidor demora.
+   Sem isto, todo estado mudava de forma seca e a espera parecia travamento. */
+.botao {
+  transition: background-color 120ms ease, border-color 120ms ease,
+    color 120ms ease, opacity 120ms ease, transform 80ms ease;
+}
+.botao:not(:disabled):active {
+  transform: scale(0.97);
+}
+.botao:focus-visible {
+  outline: 2px solid var(--tinta);
+  outline-offset: 2px;
+}
 
 .botao-secundario {
   background: transparent;
@@ -153,6 +166,25 @@ body {
 
 .botao-discreto:hover {
   color: var(--selo);
+  background: var(--papel-escuro);
+}
+
+/* Linha que está saindo da lista: some antes da resposta do servidor
+   chegar. Se a ação falhar, `useOptimistic` reverte e ela volta. */
+[data-saindo] {
+  opacity: 0.3;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .botao,
+  [data-saindo] {
+    transition-duration: 0.01ms;
+  }
+  .botao:not(:disabled):active {
+    transform: none;
+  }
 }
 
 /* Mensagens de retorno das ações */

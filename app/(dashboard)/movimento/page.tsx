@@ -11,7 +11,7 @@ import {
 } from "@/lib/formato";
 import { situacaoFiscal, type Natureza } from "@/lib/fiscal";
 import { Recibo, Vazio } from "@/components/ui/campos";
-import { BotaoSubmit } from "@/components/ui/botao-submit";
+import { BotaoQueRemove, LinhaAcao } from "@/components/ui/linha-acao";
 import { SeletorMes } from "@/components/ui/seletor-mes";
 import { EnviarNota } from "./enviar-nota";
 import { Formularios } from "./formularios";
@@ -294,7 +294,7 @@ function ItemMovimento({
   const receita = linha.tipo === "receita";
 
   return (
-    <div className="flex flex-wrap justify-between items-start gap-3 py-3 text-sm">
+    <LinhaAcao className="flex flex-wrap justify-between items-start gap-3 py-3 text-sm">
       <div className="min-w-0">
         {doc ? (
           <Link href={`/recibo/${doc.id}`} className="font-medium truncate block underline">
@@ -365,16 +365,13 @@ function ItemMovimento({
               categorias={categorias}
               trabalhos={trabalhos}
             />
-            <form action={excluirLancamento}>
-              <input type="hidden" name="id" value={linha.id} />
-              <BotaoSubmit variante="discreto" carregando="...">
-                Excluir
-              </BotaoSubmit>
-            </form>
+            <BotaoQueRemove acao={excluirLancamento} id={linha.id} variante="discreto">
+              Excluir
+            </BotaoQueRemove>
           </>
         )}
       </div>
-    </div>
+    </LinhaAcao>
   );
 }
 

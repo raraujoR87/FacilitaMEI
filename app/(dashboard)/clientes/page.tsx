@@ -13,7 +13,7 @@ import {
   type MetricaCliente,
 } from "@/lib/clientes";
 import { Recibo, Vazio } from "@/components/ui/campos";
-import { BotaoSubmit } from "@/components/ui/botao-submit";
+import { BotaoQueRemove, LinhaAcao } from "@/components/ui/linha-acao";
 import {
   ArquivarCliente,
   EditarCliente,
@@ -187,7 +187,10 @@ export default async function ClientesPage() {
             {comSituacao.map(({ m, situacao }) => {
               const rotulo = ROTULO_SITUACAO[situacao];
               return (
-                <div key={m.cliente_id} className="flex justify-between items-start gap-3 py-3 text-sm">
+                <LinhaAcao
+                  key={m.cliente_id}
+                  className="flex justify-between items-start gap-3 py-3 text-sm"
+                >
                   <div className="min-w-0">
                     <p className="font-medium truncate">
                       {m.nome}{" "}
@@ -235,17 +238,18 @@ export default async function ClientesPage() {
                         sem nome. Quem tem histórico é arquivado — e o
                         banco recusa o contrário, por gatilho. */}
                     {m.documentos === 0 ? (
-                      <form action={excluirCliente}>
-                        <input type="hidden" name="id" value={m.cliente_id} />
-                        <BotaoSubmit variante="discreto" carregando="...">
-                          Excluir
-                        </BotaoSubmit>
-                      </form>
+                      <BotaoQueRemove
+                        acao={excluirCliente}
+                        id={m.cliente_id}
+                        variante="discreto"
+                      >
+                        Excluir
+                      </BotaoQueRemove>
                     ) : (
                       <ArquivarCliente id={m.cliente_id} />
                     )}
                   </div>
-                </div>
+                </LinhaAcao>
               );
             })}
           </div>

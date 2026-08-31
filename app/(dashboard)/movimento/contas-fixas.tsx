@@ -10,6 +10,7 @@ import {
 import { ESTADO_INICIAL } from "@/app/actions/tipos";
 import { Aviso } from "@/components/ui/campos";
 import { BotaoSubmit } from "@/components/ui/botao-submit";
+import { BotaoQueRemove, LinhaAcao } from "@/components/ui/linha-acao";
 import { CampoValor } from "@/components/ui/campo-valor";
 import { formatarData, formatarMoeda } from "@/lib/formato";
 import {
@@ -181,7 +182,7 @@ function LinhaPendente({
   }
 
   return (
-    <div className="px-5 py-3 border-t" style={{ borderColor: "var(--borda)" }}>
+    <LinhaAcao className="px-5 py-3 border-t" style={{ borderColor: "var(--borda)" }}>
       <form action={acao} className="flex flex-wrap items-end justify-between gap-3">
         <input type="hidden" name="id" value={conta.id} />
         <input type="hidden" name="data_competencia" value={dataPadrao} />
@@ -233,16 +234,17 @@ function LinhaPendente({
       </form>
 
       <div className="flex justify-end">
-        <form action={desativarDespesaFixa}>
-          <input type="hidden" name="id" value={conta.id} />
-          <BotaoSubmit variante="discreto" carregando="...">
-            Não tenho mais essa conta
-          </BotaoSubmit>
-        </form>
+        <BotaoQueRemove
+          acao={desativarDespesaFixa}
+          id={conta.id}
+          variante="discreto"
+        >
+          Não tenho mais essa conta
+        </BotaoQueRemove>
       </div>
 
       <Aviso estado={estado} />
-    </div>
+    </LinhaAcao>
   );
 }
 

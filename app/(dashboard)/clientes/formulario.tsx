@@ -11,6 +11,7 @@ import {
 import { ESTADO_INICIAL } from "@/app/actions/tipos";
 import { Aviso, Campo } from "@/components/ui/campos";
 import { BotaoSubmit } from "@/components/ui/botao-submit";
+import { useMarcarSaindo } from "@/components/ui/linha-acao";
 
 export type ClienteEditavel = {
   id: string;
@@ -160,9 +161,16 @@ export function ReativarCliente({ id }: { id: string }) {
  */
 export function ArquivarCliente({ id }: { id: string }) {
   const [estado, acao] = useActionState(arquivarCliente, ESTADO_INICIAL);
+  const marcarSaindo = useMarcarSaindo();
 
   return (
-    <form action={acao} className="flex flex-col items-end gap-1">
+    <form
+      action={(formData) => {
+        marcarSaindo?.(undefined);
+        acao(formData);
+      }}
+      className="flex flex-col items-end gap-1"
+    >
       <input type="hidden" name="id" value={id} />
       <BotaoSubmit variante="discreto" carregando="...">
         Arquivar

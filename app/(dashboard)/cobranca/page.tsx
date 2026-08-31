@@ -7,7 +7,7 @@ import { formatarMomento } from "@/lib/admin";
 import { gerarBrCode, perfilTemPix, type TipoChavePix } from "@/lib/pix";
 import { linkWhatsApp } from "@/lib/whatsapp";
 import { Carimbo, Recibo, Vazio } from "@/components/ui/campos";
-import { BotaoSubmit } from "@/components/ui/botao-submit";
+import { BotaoQueRemove, LinhaAcao } from "@/components/ui/linha-acao";
 import { BotaoCopiar } from "@/components/ui/botao-copiar";
 import { ConverterOrcamento } from "./converter";
 
@@ -141,20 +141,20 @@ export default async function CobrancaPage() {
             style={{ borderColor: "var(--borda)", background: "#fff" }}
           >
             {aguardando.map((o) => (
-              <div key={o.id} className="px-5 py-3 flex flex-wrap justify-between items-center gap-3 text-sm">
+              <LinhaAcao
+                key={o.id}
+                className="px-5 py-3 flex flex-wrap justify-between items-center gap-3 text-sm"
+              >
                 <Link href={`/recibo/${o.id}`} className="underline truncate">
                   #{o.numero} · {o.descricao_servico}
                 </Link>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="valor">{formatarMoeda(Number(o.valor))}</span>
-                  <form action={cancelarDocumento}>
-                    <input type="hidden" name="id" value={o.id} />
-                    <BotaoSubmit variante="discreto" carregando="...">
-                      Cancelar
-                    </BotaoSubmit>
-                  </form>
+                  <BotaoQueRemove acao={cancelarDocumento} id={o.id} variante="discreto">
+                    Cancelar
+                  </BotaoQueRemove>
                 </div>
-              </div>
+              </LinhaAcao>
             ))}
           </div>
         </section>
@@ -202,7 +202,7 @@ export default async function CobrancaPage() {
               const whatsapp = linkWhatsApp(cliente?.telefone ?? null, mensagem);
 
               return (
-                <div key={p.id} className="py-4 text-sm">
+                <LinhaAcao key={p.id} className="py-4 text-sm">
                   <div className="flex justify-between items-start gap-4">
                     <div className="min-w-0">
                       <Link
@@ -230,10 +230,13 @@ export default async function CobrancaPage() {
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <form action={marcarComoPago}>
-                      <input type="hidden" name="id" value={p.id} />
-                      <BotaoSubmit carregando="Baixando...">Recebi</BotaoSubmit>
-                    </form>
+                    <BotaoQueRemove
+                      acao={marcarComoPago}
+                      id={p.id}
+                      carregando="Baixando..."
+                    >
+                      Recebi
+                    </BotaoQueRemove>
 
                     {whatsapp && (
                       <a
@@ -246,12 +249,9 @@ export default async function CobrancaPage() {
                       </a>
                     )}
 
-                    <form action={cancelarDocumento}>
-                      <input type="hidden" name="id" value={p.id} />
-                      <BotaoSubmit variante="discreto" carregando="...">
-                        Cancelar
-                      </BotaoSubmit>
-                    </form>
+                    <BotaoQueRemove acao={cancelarDocumento} id={p.id} variante="discreto">
+                      Cancelar
+                    </BotaoQueRemove>
                   </div>
 
                   {brcode && (
@@ -265,7 +265,7 @@ export default async function CobrancaPage() {
                       </div>
                     </details>
                   )}
-                </div>
+                </LinhaAcao>
               );
             })}
           </div>
