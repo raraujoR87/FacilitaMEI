@@ -3,7 +3,7 @@ import { CircleCheck, Clock } from "lucide-react";
 import { exigirUsuario } from "@/lib/auth";
 import { cancelarDocumento, marcarComoPago } from "@/app/actions/vendas";
 import { estaVencido, formatarData, formatarMoeda } from "@/lib/formato";
-import { formatarMomento } from "@/lib/admin";
+import { formatarMomento } from "@/lib/formato";
 import { gerarBrCode, perfilTemPix, type TipoChavePix } from "@/lib/pix";
 import { linkWhatsApp } from "@/lib/whatsapp";
 import { Carimbo, Recibo, Vazio } from "@/components/ui/campos";

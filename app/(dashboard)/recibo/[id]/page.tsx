@@ -7,7 +7,7 @@ import { gerarBrCode, perfilTemPix, type TipoChavePix } from "@/lib/pix";
 import { Carimbo } from "@/components/ui/campos";
 import { BotaoCopiar } from "@/components/ui/botao-copiar";
 import { BotaoImprimir } from "@/app/(dashboard)/relatorio/botao-imprimir";
-import { formatarMomento } from "@/lib/admin";
+import { formatarMomento } from "@/lib/formato";
 import { COLUNAS_PLANO, temRecurso } from "@/lib/planos";
 import { calcularMargem, corDaMargem, faixaDaMargem } from "@/lib/margem";
 import { Compartilhar } from "./compartilhar";

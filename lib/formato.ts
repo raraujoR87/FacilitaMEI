@@ -109,3 +109,20 @@ export function lerNumeroBR(texto: string): number {
   const n = Number(normalizado);
   return Number.isFinite(n) ? n : 0;
 }
+
+/**
+ * Data e hora de um `timestamptz`, no fuso de Brasília.
+ *
+ * Morava em `lib/admin.ts`, que importa o cliente de servidor do Supabase
+ * — e esse importa `next/headers`. Qualquer componente de cliente que
+ * quisesse formatar uma hora arrastava o módulo de servidor junto e
+ * quebrava o build. É função pura de formatação; o lugar dela é aqui.
+ */
+export function formatarMomento(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}

@@ -79,15 +79,6 @@ export function formatarTamanho(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-/** Datas com hora, para logs. */
-export function formatarMomento(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-}
 
 /** "há 3 dias" comunica melhor que uma data absoluta em coluna de atividade. */
 export function tempoDesde(iso: string | null): string {

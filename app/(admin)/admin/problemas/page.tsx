@@ -1,8 +1,5 @@
-import {
-  exigirAdministrador,
-  formatarMomento,
-  type ContaComProblema,
-} from "@/lib/admin";
+import { formatarMomento } from "@/lib/formato";
+import { exigirAdministrador, type ContaComProblema } from "@/lib/admin";
 import { Recibo, Vazio } from "@/components/ui/campos";
 import { ReenviarConfirmacao } from "./reenviar";
 

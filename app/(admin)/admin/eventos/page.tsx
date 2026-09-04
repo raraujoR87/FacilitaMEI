@@ -1,4 +1,5 @@
-import { exigirAdministrador, formatarMomento, type EventoAuth } from "@/lib/admin";
+import { formatarMomento } from "@/lib/formato";
+import { exigirAdministrador, type EventoAuth } from "@/lib/admin";
 import { Recibo, Vazio } from "@/components/ui/campos";
 
 /** Nomes técnicos do GoTrue e dos marcos derivados, em português de operação. */

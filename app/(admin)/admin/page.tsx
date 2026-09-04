@@ -1,11 +1,5 @@
-import {
-  exigirAdministrador,
-  formatarMomento,
-  formatarTamanho,
-  tempoDesde,
-  type Tenant,
-} from "@/lib/admin";
-import { formatarData, formatarDataDoMomento, formatarMoeda } from "@/lib/formato";
+import { exigirAdministrador, formatarTamanho, tempoDesde, type Tenant } from "@/lib/admin";
+import { formatarData, formatarDataDoMomento, formatarMoeda, formatarMomento } from "@/lib/formato";
 import { situacaoTeto } from "@/lib/mei";
 import { diasDeTesteRestantes, estaEmTeste } from "@/lib/planos";
 import { Carimbo, Recibo, Vazio } from "@/components/ui/campos";

@@ -9,6 +9,8 @@ import {
 import { Recibo, Vazio } from "@/components/ui/campos";
 import { SeletorMes } from "@/components/ui/seletor-mes";
 import { repartirSaidas } from "@/lib/caixa";
+import { AcessoContador, type AcessoAtivo } from "./acesso-contador";
+import { headers } from "next/headers";
 import { BotaoImprimir } from "./botao-imprimir";
 
 type Linha = {
@@ -47,6 +49,21 @@ export default async function RelatorioPage({
       .order("data_competencia", { ascending: true }),
     supabase.from("perfis").select("nome_negocio, cnpj").eq("id", user.id).single(),
   ]);
+
+  const { data: acesso } = await supabase
+    .from("acessos_contador")
+    .select("token, nome_contador, expira_em, ultimo_acesso_em, acessos")
+    .eq("user_id", user.id)
+    .is("revogado_em", null)
+    .gt("expira_em", new Date().toISOString())
+    .maybeSingle();
+
+  // A origem vem do cabeçalho: o link tem que apontar para o domínio em
+  // que a pessoa está, não para um valor fixo de build.
+  const cabecalhos = await headers();
+  const host = cabecalhos.get("host") ?? "";
+  const protocolo = host.startsWith("localhost") ? "http" : "https";
+  const origem = `${protocolo}://${host}`;
 
   const lista = (lancamentos ?? []) as Linha[];
   const receitas = lista.filter((l) => l.tipo === "receita");
@@ -87,6 +104,8 @@ export default async function RelatorioPage({
           <BotaoImprimir />
         </div>
       </div>
+
+      <AcessoContador acesso={(acesso as AcessoAtivo | null) ?? null} origem={origem} />
 
       <Recibo className="mb-6">
         <div className="text-center mb-6">
