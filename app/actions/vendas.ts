@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { exigirUsuario } from "@/lib/auth";
 import { hoje, lerNumeroBR } from "@/lib/formato";
+import { apenasDigitos, documentoValido } from "@/lib/fiscal";
 import {
   type EstadoForm,
   lerOpcional,
@@ -99,6 +100,51 @@ export async function criarDocumento(
   // Orçamento é proposta, não dinheiro recebido: nunca entra como pago.
   const status = tipo === "recibo" && recebido ? "pago" : "pendente";
 
+  // Cliente novo cadastrado na hora da venda.
+  //
+  // Antes era preciso sair, ir em Clientes, cadastrar e voltar — e no
+  // balcão, com o cliente esperando, ninguém faz isso: emite sem cliente e
+  // perde o vínculo para sempre. O cadastro nasce aqui e o documento já
+  // sai amarrado.
+  const clienteExistente = lerOpcional(formData, "cliente_id");
+  let clienteId = clienteExistente;
+
+  if (!clienteExistente) {
+    const nomeNovo = lerTexto(formData, "cliente_novo_nome");
+    if (nomeNovo) {
+      const documentoNovo = apenasDigitos(lerTexto(formData, "cliente_novo_documento"));
+      if (documentoNovo && !documentoValido(documentoNovo)) {
+        return { erro: "CPF ou CNPJ do cliente é inválido. Confira os números." };
+      }
+
+      const { data: novo, error: erroCliente } = await supabase
+        .from("clientes")
+        .insert({
+          user_id: user.id,
+          nome: nomeNovo,
+          documento: documentoNovo || null,
+          telefone: lerOpcional(formData, "cliente_novo_telefone"),
+        })
+        .select("id")
+        .single();
+
+      if (erroCliente) {
+        if (erroCliente.code === "23505") {
+          return {
+            erro: "Já existe um cliente com esse CPF/CNPJ. Escolha ele na lista em vez de cadastrar de novo.",
+          };
+        }
+        return {
+          erro:
+            mensagemDeLimite(erroCliente.message) ??
+            "Não foi possível cadastrar o cliente. Emita sem cliente e cadastre depois.",
+        };
+      }
+
+      clienteId = novo.id;
+    }
+  }
+
   const { data: documento, error } = await supabase
     .from("documentos_venda")
     .insert({
@@ -108,7 +154,7 @@ export async function criarDocumento(
       descricao_servico: descricao,
       valor: valorTotal,
       status,
-      cliente_id: lerOpcional(formData, "cliente_id"),
+      cliente_id: clienteId,
       data_emissao: lerTexto(formData, "data_emissao") || hoje(),
       data_vencimento: lerOpcional(formData, "data_vencimento"),
       observacoes: lerOpcional(formData, "observacoes"),

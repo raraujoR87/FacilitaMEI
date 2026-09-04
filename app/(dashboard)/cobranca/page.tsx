@@ -96,7 +96,7 @@ export default async function CobrancaPage() {
             {aceitos.map((o) => {
               const cliente = primeiroCliente(o.clientes);
               return (
-                <div key={o.id} className="px-5 py-4">
+                <LinhaAcao key={o.id} className="px-5 py-4">
                   <div className="flex flex-wrap justify-between items-start gap-3">
                     <div className="min-w-0">
                       <Link href={`/recibo/${o.id}`} className="font-medium underline block truncate">
@@ -114,10 +114,16 @@ export default async function CobrancaPage() {
                     <span className="valor shrink-0">{formatarMoeda(Number(o.valor))}</span>
                   </div>
 
-                  <div className="mt-3">
+                  {/* Aceite não é contrato assinado: o cliente desiste, o
+                      prazo não fecha, o preço do material muda. Sem cancelar,
+                      o orçamento aceito ficava preso na tela para sempre. */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
                     <ConverterOrcamento id={o.id} numero={o.numero} />
+                    <BotaoQueRemove acao={cancelarDocumento} id={o.id} variante="discreto">
+                      Cancelar mesmo assim
+                    </BotaoQueRemove>
                   </div>
-                </div>
+                </LinhaAcao>
               );
             })}
           </div>

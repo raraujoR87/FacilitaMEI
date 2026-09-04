@@ -93,10 +93,19 @@ function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
   const [tipo, setTipo] = useState<"recibo" | "orcamento">("recibo");
   const [recebido, setRecebido] = useState(true);
   const [clienteId, setClienteId] = useState("");
+  const [docNovo, setDocNovo] = useState("");
   const [detalhado, setDetalhado] = useState(false);
 
   const cliente = clientes.find((c) => c.id === clienteId);
-  const fiscal = situacaoFiscal(natureza, cliente?.documento);
+  const cadastrandoCliente = clienteId === "novo";
+
+  // O aviso fiscal tem que enxergar o CPF/CNPJ que está sendo digitado
+  // agora — senão a pessoa cadastra o cliente com documento e o aviso
+  // continua dizendo que a nota é dispensada.
+  const fiscal = situacaoFiscal(
+    natureza,
+    cadastrandoCliente ? docNovo : cliente?.documento
+  );
 
   return (
     <form key={estado.sucesso ?? "novo"} action={acao} className="flex flex-col gap-4">
@@ -162,7 +171,7 @@ function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
           </label>
           <select
             id="cliente_id"
-            name="cliente_id"
+            name={cadastrandoCliente ? undefined : "cliente_id"}
             value={clienteId}
             onChange={(e) => setClienteId(e.target.value)}
             className="campo"
@@ -174,9 +183,71 @@ function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
                 {c.documento ? "" : " (sem CPF/CNPJ)"}
               </option>
             ))}
+            <option value="novo">+ Cadastrar cliente novo</option>
           </select>
         </div>
       </div>
+
+      {/* Cadastrar sem sair da venda. No balcão, com o cliente
+          esperando, ninguém vai em outra tela cadastrar e volta — emite sem
+          cliente e o vínculo se perde para sempre. */}
+      {cadastrandoCliente && (
+        <div
+          className="rounded-md border p-4 flex flex-col gap-3"
+          style={{ borderColor: "var(--borda)", background: "var(--papel)" }}
+        >
+          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--tinta-suave)" }}>
+            Cliente novo
+          </p>
+          <div>
+            <label className="rotulo" htmlFor="cliente_novo_nome">
+              Nome
+            </label>
+            <input
+              id="cliente_novo_nome"
+              name="cliente_novo_nome"
+              required
+              autoComplete="off"
+              placeholder="Ex: Maria Aparecida"
+              className="campo"
+            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="rotulo" htmlFor="cliente_novo_documento">
+                CPF ou CNPJ
+                <span className="dica"> (opcional)</span>
+              </label>
+              <input
+                id="cliente_novo_documento"
+                name="cliente_novo_documento"
+                inputMode="numeric"
+                autoComplete="off"
+                value={docNovo}
+                onChange={(e) => setDocNovo(e.target.value)}
+                className="campo"
+              />
+            </div>
+            <div>
+              <label className="rotulo" htmlFor="cliente_novo_telefone">
+                Telefone
+                <span className="dica"> (opcional)</span>
+              </label>
+              <input
+                id="cliente_novo_telefone"
+                name="cliente_novo_telefone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="off"
+                className="campo"
+              />
+            </div>
+          </div>
+          <p className="dica">
+            O cadastro fica salvo em Clientes; dá para completar depois.
+          </p>
+        </div>
+      )}
 
       <ItensDocumento ativo={detalhado} aoAlternar={setDetalhado} />
 
