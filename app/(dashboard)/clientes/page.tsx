@@ -12,10 +12,17 @@ import {
   type MetricaCliente,
 } from "@/lib/clientes";
 import { Recibo, Vazio } from "@/components/ui/campos";
+import { CampoBusca } from "@/components/ui/campo-busca";
+import { combinaCadastro } from "@/lib/busca";
 import { FormularioCliente, ReativarCliente } from "./formulario";
 import { LinhaCliente } from "./linha-cliente";
 
-export default async function ClientesPage() {
+export default async function ClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const termo = (await searchParams).q ?? "";
   const { supabase } = await exigirUsuario();
 
   // Uma chamada só: calcular por cliente na aplicação seria N+1, e a
@@ -29,9 +36,17 @@ export default async function ClientesPage() {
   const ativos = clientes.filter((c) => c.arquivado_em === null);
   const arquivados = clientes.filter((c) => c.arquivado_em !== null);
 
-  const comSituacao = ativos.map((c) => ({ m: c, situacao: situacaoDoCliente(c) }));
-  const devendo = comSituacao.filter((c) => c.situacao === "devendo");
-  const sumidos = comSituacao.filter((c) => c.situacao === "sumido");
+  // A busca filtra só a LISTA, não os totais nem os alertas: se o resumo
+  // mudasse junto, "R$ 4.200 já faturado" viraria o faturado do termo
+  // buscado — e alguém leria isso como o faturamento do mês.
+  const listados = ativos.filter((c) =>
+    combinaCadastro(termo, c.nome, c.documento, c.telefone)
+  );
+
+  const comSituacao = listados.map((c) => ({ m: c, situacao: situacaoDoCliente(c) }));
+  const todasSituacoes = ativos.map((c) => ({ m: c, situacao: situacaoDoCliente(c) }));
+  const devendo = todasSituacoes.filter((c) => c.situacao === "devendo");
+  const sumidos = todasSituacoes.filter((c) => c.situacao === "sumido");
 
   const faturadoTotal = ativos.reduce((s, c) => s + Number(c.total_pago), 0);
   const emAberto = ativos.reduce((s, c) => s + Number(c.total_aberto), 0);
@@ -170,11 +185,25 @@ export default async function ClientesPage() {
 
       <FormularioCliente />
 
-      <Recibo titulo="Todos os clientes">
-        {ativos.length === 0 ? (
+      <div className="mb-3">
+        <CampoBusca
+          placeholder="Buscar por nome, CPF/CNPJ ou telefone"
+          rotulo="Buscar cliente"
+        />
+      </div>
+
+      <Recibo
+        titulo={
+          termo
+            ? `${listados.length} de ${ativos.length} cliente(s)`
+            : "Todos os clientes"
+        }
+      >
+        {listados.length === 0 ? (
           <Vazio>
-            Nenhum cliente cadastrado. Cadastrar aqui permite vincular recibos,
-            saber quem mais compra e quem está devendo.
+            {termo
+              ? `Nenhum cliente encontrado para "${termo}".`
+              : "Nenhum cliente cadastrado. Cadastrar aqui permite vincular recibos, saber quem mais compra e quem está devendo."}
           </Vazio>
         ) : (
           <div className="flex flex-col divide-y" style={{ borderColor: "var(--borda)" }}>

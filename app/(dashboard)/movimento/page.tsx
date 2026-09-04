@@ -7,10 +7,13 @@ import {
   hoje,
   intervaloDoMes,
   mesAtual,
+  rotuloMes,
 } from "@/lib/formato";
 import { situacaoFiscal, type Natureza } from "@/lib/fiscal";
 import { Recibo, Vazio } from "@/components/ui/campos";
 import { SeletorMes } from "@/components/ui/seletor-mes";
+import { CampoBusca } from "@/components/ui/campo-busca";
+import { combina } from "@/lib/busca";
 import { EnviarNota } from "./enviar-nota";
 import { Formularios } from "./formularios";
 import { LinhaMovimento } from "./linha-movimento";
@@ -62,11 +65,12 @@ type Trabalho = { id: string; numero: number; descricao_servico: string };
 export default async function MovimentoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string; filtro?: string; lancar?: string }>;
+  searchParams: Promise<{ mes?: string; filtro?: string; lancar?: string; q?: string }>;
 }) {
   const { supabase, user } = await exigirUsuario();
   const params = await searchParams;
   const mes = params.mes ?? mesAtual();
+  const termo = params.q ?? "";
   const filtro: Filtro =
     (FILTROS.find((f) => f.id === params.filtro)?.id as Filtro) ?? "tudo";
   const { inicio, fim } = intervaloDoMes(mes);
@@ -136,7 +140,21 @@ export default async function MovimentoPage({
 
   const semRecibo = todos.filter((l) => l.tipo === "receita" && !um(l.documentos_venda));
 
+  // Os totais do mês continuam vindo de `todos`: filtrados junto, "Saídas
+  // do negócio" viraria o total do que foi buscado, e isso se lê como o
+  // gasto do mês.
   const lista = todos.filter((l) => {
+    if (
+      !combina(
+        termo,
+        l.descricao,
+        l.fornecedor_cliente,
+        um(l.categorias)?.nome,
+        um(um(l.documentos_venda)?.clientes ?? null)?.nome
+      )
+    ) {
+      return false;
+    }
     if (filtro === "tudo") return true;
     if (filtro === "saida")
       return l.tipo === "despesa" && l.natureza_saida === "custo";
@@ -228,11 +246,18 @@ export default async function MovimentoPage({
         </p>
       )}
 
+      <div className="mb-3">
+        <CampoBusca
+          placeholder="Buscar no mês por descrição, cliente ou fornecedor"
+          rotulo="Buscar lançamento"
+        />
+      </div>
+
       <nav className="flex gap-2 mb-4 overflow-x-auto" aria-label="Filtrar por tipo">
         {FILTROS.filter((f) => f.id !== "sem-recibo" || semRecibo.length > 0).map((f) => (
           <Link
             key={f.id}
-            href={`/movimento?mes=${mes}&filtro=${f.id}`}
+            href={`/movimento?mes=${mes}&filtro=${f.id}${termo ? `&q=${encodeURIComponent(termo)}` : ""}`}
             aria-current={filtro === f.id ? "page" : undefined}
             className="text-sm px-3 py-1.5 rounded-full border whitespace-nowrap"
             style={{
@@ -246,10 +271,18 @@ export default async function MovimentoPage({
         ))}
       </nav>
 
-      <Recibo titulo={`${lista.length} registro${lista.length === 1 ? "" : "s"}`}>
+      <Recibo
+        titulo={
+          termo
+            ? `${lista.length} resultado${lista.length === 1 ? "" : "s"} para "${termo}"`
+            : `${lista.length} registro${lista.length === 1 ? "" : "s"}`
+        }
+      >
         {lista.length === 0 ? (
           <Vazio>
-            {filtro === "tudo"
+            {termo
+              ? `Nada encontrado para "${termo}" em ${rotuloMes(mes)}. A busca olha só o mês selecionado — troque o mês acima para procurar em outro.`
+              : filtro === "tudo"
               ? "Nada neste mês ainda. Use o formulário acima ou envie a foto de uma nota."
               : "Nenhum registro deste tipo no mês."}
           </Vazio>
