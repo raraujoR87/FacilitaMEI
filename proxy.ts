@@ -29,8 +29,13 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/cadastro");
+  // `/redefinir-senha` fica de fora de propósito: o link do e-mail cria
+  // sessão antes de a pessoa chegar lá, e tratá-la como tela de visitante
+  // jogaria quem veio redefinir direto no dashboard, sem trocar a senha.
+  const isAuthRoute =
+    request.nextUrl.pathname.startsWith("/login") ||
+    request.nextUrl.pathname.startsWith("/cadastro") ||
+    request.nextUrl.pathname.startsWith("/esqueci-senha");
   const ROTAS_PROTEGIDAS = [
     "/dashboard",
     "/financeiro",

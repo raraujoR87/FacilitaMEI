@@ -60,9 +60,18 @@ export default function LoginPage() {
           />
         </div>
         <div>
-          <label className="text-sm font-medium block mb-1" htmlFor="senha">
-            Senha
-          </label>
+          <div className="flex items-baseline justify-between gap-3 mb-1">
+            <label className="text-sm font-medium" htmlFor="senha">
+              Senha
+            </label>
+            <Link
+              href="/esqueci-senha"
+              className="text-xs underline"
+              style={{ color: "var(--tinta-suave)" }}
+            >
+              Esqueceu a senha?
+            </Link>
+          </div>
           <input
             id="senha"
             type="password"
