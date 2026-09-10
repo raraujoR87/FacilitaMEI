@@ -21,18 +21,18 @@ import { paraWinAnsi } from "./texto-pdf.ts";
  * serverless sem navegador embutido, e as fontes padrão já cobrem os
  * acentos do português no encoding WinAnsi.
  *
- * A diagramação trabalha em blocos delimitados — cada informação no seu
- * quadro — porque é o que separa proposta de lista solta. A identidade
- * vem da cor da marca repetida nos marcadores de seção e na faixa do
- * total, não de uma fonte própria: fonte embutida pesaria na função
- * serverless para ganho que o cliente não nota.
+ * CONVENÇÃO DE DIAGRAMAÇÃO, que a primeira versão não tinha e por isso
+ * saiu com as linhas da tabela se sobrepondo: `ctx.y` é sempre a LINHA DE
+ * BASE do próximo texto a desenhar. Blocos com altura própria (tabelas,
+ * caixas) calculam topo e base explicitamente e devolvem `ctx.y` na base.
+ * Misturar as duas leituras é o que fazia a linha avançar 6pt em vez de 20.
  */
 
 const A4 = { largura: 595.28, altura: 841.89 };
 const MARGEM = 42;
 const LARGURA_UTIL = A4.largura - MARGEM * 2;
 /** Espaço reservado no pé para o rodapé não encostar no conteúdo. */
-const PE = MARGEM + 34;
+const PE = MARGEM + 26;
 
 const TINTA = rgb(0.1, 0.1, 0.1);
 const SUAVE = rgb(0.35, 0.33, 0.31);
@@ -98,7 +98,7 @@ function corDeHex(hex: string | null): RGB {
  *
  * A cor da marca é escolhida pelo usuário e pode ser qualquer uma; usá-la
  * cheia atrás de texto pequeno deixaria o documento ilegível em metade
- * dos casos.
+ * das marcas.
  */
 function clarear(cor: RGB, quanto: number): RGB {
   return rgb(
@@ -242,59 +242,62 @@ function regua(ctx: Contexto, y: number, cor: RGB = BORDA): void {
 }
 
 /**
- * Marcador de seção.
+ * Cabeçalho de seção.
  *
  * O ponto cheio na cor da marca é o que amarra o documento à identidade
  * sem depender de fonte própria: repete em cada bloco e o olho reconhece.
+ *
+ * `reserva` é a altura do conteúdo que vem logo abaixo. Sem ela o título
+ * cabia no fim da página e o conteúdo ia para a seguinte — o documento
+ * saía com uma seção de cabeçalho vazio no pé.
  */
-function secao(ctx: Contexto, titulo: string): void {
-  garantirEspaco(ctx, 52);
-  ctx.y -= 24;
+function secao(ctx: Contexto, titulo: string, reserva = 30): void {
+  garantirEspaco(ctx, 30 + reserva);
+  ctx.y -= 20;
 
   ctx.pagina.drawCircle({
-    x: MARGEM + 3.5,
-    y: ctx.y + 3,
-    size: 3.5,
+    x: MARGEM + 3.2,
+    y: ctx.y + 2.8,
+    size: 3.2,
     color: ctx.cor,
   });
 
   escrever(ctx, titulo.toUpperCase(), {
     tamanho: 8.5,
     fonte: ctx.negrito,
-    x: MARGEM + 13,
+    x: MARGEM + 12,
   });
 
-  ctx.y -= 9;
+  ctx.y -= 7;
   regua(ctx, ctx.y);
-  ctx.y -= 15;
+  ctx.y -= 13;
 }
 
-/** Item de lista, com o ponto alinhado ao texto ao lado. */
+/** Item de lista, com o ponto alinhado à primeira linha do texto. */
 function marcador(ctx: Contexto, rotulo: string | null, texto: string): void {
-  const recuo = MARGEM + 12;
+  const recuo = MARGEM + 11;
   const prefixo = rotulo ? `${rotulo}: ` : "";
-  const linhas = quebrar(prefixo + texto, ctx.regular, 9.5, LARGURA_UTIL - 12);
+  const linhas = quebrar(prefixo + texto, ctx.regular, 9, LARGURA_UTIL - 11);
 
-  garantirEspaco(ctx, linhas.length * 12 + 8);
+  garantirEspaco(ctx, linhas.length * 11.5 + 6);
 
-  ctx.pagina.drawCircle({ x: MARGEM + 4, y: ctx.y + 3, size: 1.6, color: SUAVE });
+  ctx.pagina.drawCircle({ x: MARGEM + 3.5, y: ctx.y + 2.8, size: 1.5, color: SUAVE });
 
   linhas.forEach((linha, i) => {
     if (i === 0 && rotulo) {
-      // Rótulo em negrito e o resto normal, na mesma linha.
       const marca = `${rotulo}:`;
-      escrever(ctx, marca, { tamanho: 9.5, fonte: ctx.negrito, x: recuo });
+      escrever(ctx, marca, { tamanho: 9, fonte: ctx.negrito, x: recuo });
       escrever(ctx, linha.slice(prefixo.length), {
-        tamanho: 9.5,
+        tamanho: 9,
         cor: SUAVE,
-        x: recuo + ctx.negrito.widthOfTextAtSize(paraWinAnsi(marca), 9.5) + 4,
+        x: recuo + ctx.negrito.widthOfTextAtSize(paraWinAnsi(marca), 9) + 4,
       });
     } else {
-      escrever(ctx, linha, { tamanho: 9.5, cor: SUAVE, x: recuo });
+      escrever(ctx, linha, { tamanho: 9, cor: SUAVE, x: recuo });
     }
-    ctx.y -= 12;
+    ctx.y -= 11.5;
   });
-  ctx.y -= 3;
+  ctx.y -= 2;
 }
 
 export async function gerarPdfOrcamento(
@@ -324,33 +327,66 @@ export async function gerarPdfOrcamento(
   // ══════════════════ CABEÇALHO ══════════════════
   // Quem propõe à esquerda, o número do documento à direita: é onde o
   // olho procura cada um dos dois.
-  const CAIXA_NUMERO = 168;
+  const CAIXA_NUMERO = 150;
+  const ALTURA_CAIXA = 52;
   const topo = ctx.y;
 
-  let alturaLogo = 0;
+  const yCaixa = topo - ALTURA_CAIXA;
+  caixa(ctx, limite - CAIXA_NUMERO, yCaixa, CAIXA_NUMERO, ALTURA_CAIXA, { borda: BORDA });
+  caixa(ctx, limite - CAIXA_NUMERO, yCaixa + ALTURA_CAIXA - 17, CAIXA_NUMERO, 17, {
+    fundo: clarear(cor, 0.86),
+  });
+
+  ctx.y = yCaixa + ALTURA_CAIXA - 12;
+  centro(ctx, "ORÇAMENTO Nº", limite - CAIXA_NUMERO / 2, { tamanho: 7.5, fonte: negrito });
+  ctx.y = yCaixa + 12;
+  centro(ctx, String(orcamento.numero), limite - CAIXA_NUMERO / 2, {
+    tamanho: 22,
+    fonte: negrito,
+    cor,
+  });
+
+  ctx.y = yCaixa - 12;
+  direita(ctx, `Emitido em ${formatarData(orcamento.dataEmissao)}`, limite, {
+    tamanho: 8,
+    cor: SUAVE,
+  });
+  if (orcamento.validadeEm) {
+    ctx.y -= 11;
+    direita(ctx, `Válido até ${formatarData(orcamento.validadeEm)}`, limite, {
+      tamanho: 8.5,
+      fonte: negrito,
+      cor,
+    });
+  }
+  const fimDireita = ctx.y;
+
+  // Coluna da esquerda desenhada depois, para ficar independente da altura
+  // da caixa: quem tem logo alto não empurra o número para baixo.
+  let yEsq = topo;
   if (empresa.logo) {
     try {
       const img =
         empresa.logo.tipo === "png"
           ? await doc.embedPng(empresa.logo.bytes)
           : await doc.embedJpg(empresa.logo.bytes);
-      const escala = Math.min(130 / img.width, 46 / img.height);
-      alturaLogo = img.height * escala;
+      const escala = Math.min(120 / img.width, 40 / img.height);
+      const altura = img.height * escala;
       ctx.pagina.drawImage(img, {
         x: MARGEM,
-        y: topo - alturaLogo,
+        y: yEsq - altura,
         width: img.width * escala,
-        height: alturaLogo,
+        height: altura,
       });
+      yEsq -= altura + 16;
     } catch {
       // Logo corrompido ou em formato inesperado não pode impedir a
       // proposta de sair: o documento vale sem ele.
-      alturaLogo = 0;
     }
   }
 
-  ctx.y = topo - alturaLogo - (alturaLogo > 0 ? 14 : 0);
-  escrever(ctx, empresa.nome, { tamanho: 15, fonte: negrito, cor });
+  ctx.y = yEsq - 3;
+  escrever(ctx, empresa.nome, { tamanho: 14, fonte: negrito, cor });
   ctx.y -= 13;
 
   const identificacao = [
@@ -361,61 +397,25 @@ export async function gerarPdfOrcamento(
   ].filter(Boolean) as string[];
 
   for (const linha of identificacao) {
-    escrever(ctx, linha, { tamanho: 8.5, cor: SUAVE });
-    ctx.y -= 10.5;
+    escrever(ctx, linha, { tamanho: 8, cor: SUAVE });
+    ctx.y -= 10;
   }
 
-  const fimEsquerda = ctx.y;
-
-  const alturaCaixa = 58;
-  const yCaixa = topo - alturaCaixa + 8;
-  caixa(ctx, limite - CAIXA_NUMERO, yCaixa, CAIXA_NUMERO, alturaCaixa, { borda: BORDA });
-  caixa(ctx, limite - CAIXA_NUMERO, yCaixa + alturaCaixa - 19, CAIXA_NUMERO, 19, {
-    fundo: clarear(cor, 0.86),
-  });
-
-  ctx.y = yCaixa + alturaCaixa - 13;
-  centro(ctx, "ORÇAMENTO Nº", limite - CAIXA_NUMERO / 2, {
-    tamanho: 8,
-    fonte: negrito,
-  });
-  ctx.y = yCaixa + 14;
-  centro(ctx, String(orcamento.numero), limite - CAIXA_NUMERO / 2, {
-    tamanho: 26,
-    fonte: negrito,
-    cor,
-  });
-
-  ctx.y = yCaixa - 12;
-  direita(ctx, `Emitido em ${formatarData(orcamento.dataEmissao)}`, limite, {
-    tamanho: 8.5,
-    cor: SUAVE,
-  });
-  if (orcamento.validadeEm) {
-    ctx.y -= 11;
-    direita(ctx, `Válido até ${formatarData(orcamento.validadeEm)}`, limite, {
-      tamanho: 9,
-      fonte: negrito,
-      cor,
-    });
-  }
-
-  ctx.y = Math.min(fimEsquerda, ctx.y) - 6;
+  ctx.y = Math.min(ctx.y, fimDireita) - 2;
 
   // ══════════════════ CLIENTE ══════════════════
-  secao(ctx, "Cliente");
-
   const linhasCliente: [string, string][] = [["Nome", cliente.nome ?? "Não informado"]];
   if (cliente.documento) linhasCliente.push(["CPF/CNPJ", cliente.documento]);
   if (cliente.telefone) linhasCliente.push(["Telefone", cliente.telefone]);
   if (cliente.email) linhasCliente.push(["E-mail", cliente.email]);
 
-  const ALTURA_LINHA = 20;
-  const COLUNA_ROTULO = 88;
+  const ALTURA_LINHA = 17;
+  const COLUNA_ROTULO = 82;
   const alturaTabela = linhasCliente.length * ALTURA_LINHA;
 
-  garantirEspaco(ctx, alturaTabela + 12);
-  const topoTabela = ctx.y + 12;
+  secao(ctx, "Cliente", alturaTabela);
+
+  const topoTabela = ctx.y + 11;
   caixa(ctx, MARGEM, topoTabela - alturaTabela, LARGURA_UTIL, alturaTabela, {
     borda: BORDA,
   });
@@ -424,11 +424,11 @@ export async function gerarPdfOrcamento(
   });
 
   linhasCliente.forEach(([rotulo, valor], i) => {
-    const yLinha = topoTabela - (i + 1) * ALTURA_LINHA;
-    if (i > 0) regua(ctx, yLinha + ALTURA_LINHA);
-    ctx.y = yLinha + 6.5;
-    escrever(ctx, rotulo, { tamanho: 8.5, fonte: negrito, x: MARGEM + 9 });
-    escrever(ctx, valor, { tamanho: 9.5, x: MARGEM + COLUNA_ROTULO + 10 });
+    const baseLinha = topoTabela - (i + 1) * ALTURA_LINHA;
+    if (i > 0) regua(ctx, baseLinha + ALTURA_LINHA);
+    ctx.y = baseLinha + 5.5;
+    escrever(ctx, rotulo, { tamanho: 8, fonte: negrito, x: MARGEM + 8 });
+    escrever(ctx, valor, { tamanho: 9, x: MARGEM + COLUNA_ROTULO + 9 });
   });
 
   ctx.pagina.drawLine({
@@ -438,17 +438,18 @@ export async function gerarPdfOrcamento(
     color: BORDA,
   });
 
-  ctx.y = topoTabela - alturaTabela - 4;
+  ctx.y = topoTabela - alturaTabela - 2;
 
   // ══════════════════ OBJETO ══════════════════
+  const linhasObjeto = quebrar(orcamento.descricao, regular, 10, LARGURA_UTIL);
   secao(
     ctx,
-    orcamento.natureza === "servico" ? "Serviço proposto" : "Fornecimento proposto"
+    orcamento.natureza === "servico" ? "Serviço proposto" : "Fornecimento proposto",
+    linhasObjeto.length * 13
   );
-  for (const linha of quebrar(orcamento.descricao, regular, 10.5, LARGURA_UTIL)) {
-    garantirEspaco(ctx, 15);
-    escrever(ctx, linha, { tamanho: 10.5 });
-    ctx.y -= 13.5;
+  for (const linha of linhasObjeto) {
+    escrever(ctx, linha, { tamanho: 10 });
+    ctx.y -= 13;
   }
 
   // ══════════════════ DETALHAMENTO ══════════════════
@@ -458,164 +459,193 @@ export async function gerarPdfOrcamento(
     orcamento.valorTotal + orcamento.desconto
   );
 
-  const colDesc = MARGEM + 34;
-  const colQtd = MARGEM + 320;
-  const colUnit = MARGEM + 420;
+  const colDesc = MARGEM + 30;
+  const colQtd = MARGEM + 318;
+  const colUnit = MARGEM + 415;
+  const ALTURA_CABECALHO = 18;
 
+  /** `ctx.y` entra e sai na borda inferior, como nas linhas da tabela. */
   function cabecalhoTabela() {
-    caixa(ctx, MARGEM, ctx.y - 6, LARGURA_UTIL, 20, { fundo: clarear(cor, 0.88) });
-    ctx.y += 1;
-    escrever(ctx, "Nº", { tamanho: 8, fonte: negrito, x: MARGEM + 9 });
-    escrever(ctx, "Descrição", { tamanho: 8, fonte: negrito, x: colDesc });
-    direita(ctx, "Qtd", colQtd, { tamanho: 8, fonte: negrito });
-    direita(ctx, "Valor un.", colUnit, { tamanho: 8, fonte: negrito });
-    direita(ctx, "Total", limite - 9, { tamanho: 8, fonte: negrito });
-    ctx.y -= 20;
+    const topoCab = ctx.y;
+    caixa(ctx, MARGEM, topoCab - ALTURA_CABECALHO, LARGURA_UTIL, ALTURA_CABECALHO, {
+      fundo: clarear(cor, 0.88),
+    });
+    ctx.y = topoCab - 12.5;
+    escrever(ctx, "Nº", { tamanho: 7.5, fonte: negrito, x: MARGEM + 8 });
+    escrever(ctx, "Descrição", { tamanho: 7.5, fonte: negrito, x: colDesc });
+    direita(ctx, "Qtd", colQtd, { tamanho: 7.5, fonte: negrito });
+    direita(ctx, "Valor un.", colUnit, { tamanho: 7.5, fonte: negrito });
+    direita(ctx, "Total", limite - 8, { tamanho: 7.5, fonte: negrito });
+    ctx.y = topoCab - ALTURA_CABECALHO;
   }
 
   if (orcamento.itens.length > 0) {
-    secao(ctx, "Detalhamento");
-    ctx.y -= 2;
+    secao(ctx, "Detalhamento", ALTURA_CABECALHO + 42);
+    ctx.y += 2;
     cabecalhoTabela();
 
     orcamento.itens.forEach((item, i) => {
-      const linhas = quebrar(item.descricao, regular, 9.5, colQtd - colDesc - 16);
-      const altura = Math.max(20, linhas.length * 12 + 8);
+      const linhas = quebrar(item.descricao, regular, 9, colQtd - colDesc - 14);
+      // Altura vinda do conteúdo. O cálculo antigo somava um ajuste fixo e
+      // fazia a linha avançar 6pt em vez de 20: as linhas se sobrepunham e
+      // os primeiros itens sumiam da tabela.
+      const altura = Math.max(19, 8 + linhas.length * 11.5);
 
       // Tabela que atravessa a página repete o cabeçalho: sem isso a
       // segunda página vira uma lista de números sem rótulo.
-      if (ctx.y - altura <= PE) {
+      if (ctx.y - altura < PE) {
         novaPagina(ctx);
-        ctx.y -= 6;
         cabecalhoTabela();
       }
 
-      const yTexto = ctx.y;
-      const baseLinha = yTexto - altura + 14;
+      const topoLinha = ctx.y;
+      const baseLinha = topoLinha - altura;
 
       // Zebra: em tabela longa, o olho perde a linha sem ela.
       if (i % 2 === 1) {
         caixa(ctx, MARGEM, baseLinha, LARGURA_UTIL, altura, { fundo: PAPEL });
       }
 
-      escrever(ctx, String(i + 1), { tamanho: 9, cor: SUAVE, x: MARGEM + 9 });
-      escrever(ctx, linhas[0], { tamanho: 9.5, x: colDesc });
+      ctx.y = topoLinha - 13;
+      escrever(ctx, String(i + 1), { tamanho: 8.5, cor: SUAVE, x: MARGEM + 8 });
+      escrever(ctx, linhas[0], { tamanho: 9, x: colDesc });
       direita(
         ctx,
         `${formatarQuantidade(Number(item.quantidade))} ${item.unidade}`,
         colQtd,
-        { tamanho: 9, cor: SUAVE }
+        { tamanho: 8.5, cor: SUAVE }
       );
-      direita(ctx, formatarMoeda(Number(item.valor_unitario)), colUnit, {
-        tamanho: 9.5,
-      });
-      direita(ctx, formatarMoeda(Number(item.total)), limite - 9, {
-        tamanho: 9.5,
+      direita(ctx, formatarMoeda(Number(item.valor_unitario)), colUnit, { tamanho: 9 });
+      direita(ctx, formatarMoeda(Number(item.total)), limite - 8, {
+        tamanho: 9,
         fonte: negrito,
       });
 
-      ctx.y -= 12;
       for (const extra of linhas.slice(1)) {
-        escrever(ctx, extra, { tamanho: 9.5, cor: SUAVE, x: colDesc });
-        ctx.y -= 12;
+        ctx.y -= 11.5;
+        escrever(ctx, extra, { tamanho: 9, cor: SUAVE, x: colDesc });
       }
 
       ctx.y = baseLinha;
-      regua(ctx, ctx.y);
+      regua(ctx, baseLinha);
     });
-
-    ctx.y -= 4;
   }
 
   // ══════════════════ FECHAMENTO ══════════════════
-  const LARGURA_TOTAIS = 236;
-  const ALTURA_FAIXA = 34;
-  const alturaTotais = totais.desconto > 0 ? ALTURA_FAIXA + 42 : ALTURA_FAIXA;
+  const LARGURA_TOTAIS = 220;
+  const ALTURA_FAIXA = 30;
+  const alturaTotais = totais.desconto > 0 ? ALTURA_FAIXA + 38 : ALTURA_FAIXA;
 
-  garantirEspaco(ctx, alturaTotais + 24);
-  ctx.y -= 14;
+  garantirEspaco(ctx, alturaTotais + 16);
+  ctx.y -= 12;
 
   const xTotais = limite - LARGURA_TOTAIS;
-  const topoTotais = ctx.y + 12;
-  caixa(ctx, xTotais, topoTotais - alturaTotais, LARGURA_TOTAIS, alturaTotais, {
-    borda: BORDA,
-  });
+  const topoTotais = ctx.y;
+  const baseTotais = topoTotais - alturaTotais;
+
+  caixa(ctx, xTotais, baseTotais, LARGURA_TOTAIS, alturaTotais, { borda: BORDA });
 
   if (totais.desconto > 0) {
-    ctx.y = topoTotais - 16;
-    escrever(ctx, "Subtotal", { tamanho: 9.5, cor: SUAVE, x: xTotais + 12 });
-    direita(ctx, formatarMoeda(totais.subtotal), limite - 12, { tamanho: 9.5 });
+    ctx.y = topoTotais - 15;
+    escrever(ctx, "Subtotal", { tamanho: 9, cor: SUAVE, x: xTotais + 11 });
+    direita(ctx, formatarMoeda(totais.subtotal), limite - 11, { tamanho: 9 });
 
-    ctx.y -= 17;
+    ctx.y -= 15;
     escrever(
       ctx,
       totais.percentualDesconto
         ? `Desconto (${totais.percentualDesconto.toLocaleString("pt-BR")}%)`
         : "Desconto",
-      { tamanho: 9.5, cor: SUAVE, x: xTotais + 12 }
+      { tamanho: 9, cor: SUAVE, x: xTotais + 11 }
     );
-    direita(ctx, `- ${formatarMoeda(totais.desconto)}`, limite - 12, {
-      tamanho: 9.5,
+    direita(ctx, `- ${formatarMoeda(totais.desconto)}`, limite - 11, {
+      tamanho: 9,
       cor: SUAVE,
     });
   }
 
   // Faixa do total na cor da marca: é o número pelo qual a proposta
   // existe, e precisa se separar de tudo em volta.
-  const yFaixa = topoTotais - alturaTotais;
-  caixa(ctx, xTotais, yFaixa, LARGURA_TOTAIS, ALTURA_FAIXA, { fundo: cor });
-  ctx.y = yFaixa + 12;
+  caixa(ctx, xTotais, baseTotais, LARGURA_TOTAIS, ALTURA_FAIXA, { fundo: cor });
+  ctx.y = baseTotais + 10.5;
   escrever(ctx, "TOTAL", {
-    tamanho: 10,
+    tamanho: 9.5,
     fonte: negrito,
     cor: contrasteSobre(cor),
-    x: xTotais + 12,
+    x: xTotais + 11,
   });
-  direita(ctx, formatarMoeda(totais.total), limite - 12, {
-    tamanho: 15,
+  direita(ctx, formatarMoeda(totais.total), limite - 11, {
+    tamanho: 14,
     fonte: negrito,
     cor: contrasteSobre(cor),
   });
 
-  ctx.y = yFaixa - 8;
+  // O link do aceite ocupa a faixa vazia à esquerda dos totais. Antes
+  // ficava acima das assinaturas e era justamente ele que empurrava o
+  // bloco inteiro para uma segunda página quase em branco.
+  if (orcamento.linkAceite) {
+    const larguraLink = xTotais - MARGEM - 18;
+    ctx.y = topoTotais - 15;
+    escrever(ctx, "Prefere aceitar pelo celular?", {
+      tamanho: 8.5,
+      fonte: negrito,
+      cor: SUAVE,
+    });
+    ctx.y -= 11;
+    for (const linha of quebrar(orcamento.linkAceite, regular, 7.5, larguraLink)) {
+      escrever(ctx, linha, { tamanho: 7.5, cor });
+      ctx.y -= 9.5;
+    }
+  }
+
+  ctx.y = baseTotais;
 
   // ══════════════════ CONDIÇÕES ══════════════════
-  if (orcamento.condicoesPagamento || orcamento.prazoExecucao || orcamento.garantia) {
-    secao(ctx, "Condições");
-    if (orcamento.condicoesPagamento) {
-      marcador(ctx, "Pagamento", orcamento.condicoesPagamento);
-    }
-    if (orcamento.prazoExecucao) marcador(ctx, "Prazo de execução", orcamento.prazoExecucao);
-    if (orcamento.garantia) marcador(ctx, "Garantia", orcamento.garantia);
+  const condicoes: [string, string][] = [];
+  if (orcamento.condicoesPagamento) {
+    condicoes.push(["Pagamento", orcamento.condicoesPagamento]);
+  }
+  if (orcamento.prazoExecucao) condicoes.push(["Prazo de execução", orcamento.prazoExecucao]);
+  if (orcamento.garantia) condicoes.push(["Garantia", orcamento.garantia]);
+
+  if (condicoes.length > 0) {
+    secao(ctx, "Condições", condicoes.length * 14);
+    for (const [rotulo, texto] of condicoes) marcador(ctx, rotulo, texto);
   }
 
   if (orcamento.observacoes) {
-    secao(ctx, "Observações");
+    secao(ctx, "Observações", 26);
     marcador(ctx, null, orcamento.observacoes);
-  }
-
-  if (orcamento.linkAceite) {
-    secao(ctx, "Aceitar pelo celular");
-    marcador(ctx, null, `Abra este link e confirme: ${orcamento.linkAceite}`);
   }
 
   // ══════════════════ ASSINATURAS ══════════════════
   // Duas colunas, como no documento de papel: quem propõe de um lado,
   // quem aceita do outro. Dá para fechar impresso, sem link nenhum.
-  garantirEspaco(ctx, 130);
-  ctx.y -= 44;
+  //
+  // O bloco inteiro é reservado de uma vez: assinatura órfã no topo de uma
+  // página em branco é pior do que uma quebra um pouco antes.
+  const ALTURA_ASSINATURAS = 76;
+  garantirEspaco(ctx, ALTURA_ASSINATURAS);
+
+  // Ancorado no pé da folha quando sobra espaço: assinatura no fim da
+  // página é a convenção do documento em papel, e sem isso ficava uma
+  // faixa branca larga entre as observações e as linhas.
+  const topoNoPe = PE + ALTURA_ASSINATURAS;
+  ctx.y = ctx.y - 20 > topoNoPe ? topoNoPe : ctx.y - 20;
 
   const meioEsq = MARGEM + LARGURA_UTIL / 4;
   const meioDir = MARGEM + (LARGURA_UTIL * 3) / 4;
-  const larguraLinha = LARGURA_UTIL / 2 - 30;
+  const larguraLinha = LARGURA_UTIL / 2 - 34;
+  // A linha fica no pé do espaço da assinatura; o desenho vai acima dela.
+  const yLinhaAssinatura = ctx.y - 30;
 
   if (empresa.assinatura) {
     try {
       const img = await doc.embedPng(empresa.assinatura);
-      const escala = Math.min(larguraLinha / img.width, 46 / img.height, 1);
+      const escala = Math.min(larguraLinha / img.width, 34 / img.height, 1);
       ctx.pagina.drawImage(img, {
         x: meioEsq - (img.width * escala) / 2,
-        y: ctx.y + 6,
+        y: yLinhaAssinatura + 4,
         width: img.width * escala,
         height: img.height * escala,
       });
@@ -627,26 +657,26 @@ export async function gerarPdfOrcamento(
 
   for (const meio of [meioEsq, meioDir]) {
     ctx.pagina.drawLine({
-      start: { x: meio - larguraLinha / 2, y: ctx.y },
-      end: { x: meio + larguraLinha / 2, y: ctx.y },
+      start: { x: meio - larguraLinha / 2, y: yLinhaAssinatura },
+      end: { x: meio + larguraLinha / 2, y: yLinhaAssinatura },
       thickness: 0.8,
       color: SUAVE,
     });
   }
 
-  ctx.y -= 13;
+  ctx.y = yLinhaAssinatura - 12;
   centro(ctx, empresa.assinaturaNome ?? empresa.nome, meioEsq, {
-    tamanho: 9.5,
+    tamanho: 9,
     fonte: negrito,
   });
-  centro(ctx, cliente.nome ?? "Cliente", meioDir, { tamanho: 9.5, fonte: negrito });
+  centro(ctx, cliente.nome ?? "Cliente", meioDir, { tamanho: 9, fonte: negrito });
 
-  ctx.y -= 11;
+  ctx.y -= 10.5;
   if (empresa.assinaturaTitulo) {
-    centro(ctx, empresa.assinaturaTitulo, meioEsq, { tamanho: 8.5, cor: SUAVE });
+    centro(ctx, empresa.assinaturaTitulo, meioEsq, { tamanho: 8, cor: SUAVE });
   }
   centro(ctx, "Aceite do cliente — assinatura e data", meioDir, {
-    tamanho: 8.5,
+    tamanho: 8,
     cor: SUAVE,
   });
 
@@ -658,24 +688,24 @@ export async function gerarPdfOrcamento(
   const paginas = doc.getPages();
   paginas.forEach((pagina, i) => {
     pagina.drawLine({
-      start: { x: MARGEM, y: MARGEM + 4 },
-      end: { x: limite, y: MARGEM + 4 },
+      start: { x: MARGEM, y: MARGEM + 2 },
+      end: { x: limite, y: MARGEM + 2 },
       thickness: 0.6,
       color: BORDA,
     });
     pagina.drawText(paraWinAnsi(rodape), {
       x: MARGEM,
-      y: MARGEM - 8,
-      size: 7.5,
+      y: MARGEM - 9,
+      size: 7,
       font: regular,
       color: SUAVE,
     });
     if (paginas.length > 1) {
       const numeracao = `${i + 1}/${paginas.length}`;
       pagina.drawText(numeracao, {
-        x: limite - regular.widthOfTextAtSize(numeracao, 7.5),
-        y: MARGEM - 8,
-        size: 7.5,
+        x: limite - regular.widthOfTextAtSize(numeracao, 7),
+        y: MARGEM - 9,
+        size: 7,
         font: regular,
         color: SUAVE,
       });
