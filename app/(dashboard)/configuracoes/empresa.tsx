@@ -45,7 +45,7 @@ export function DadosDaEmpresa({
       >
         <p className="text-sm" style={{ color: "var(--tinta-suave)" }}>
           Entram no cabeçalho do orçamento em PDF, junto com o logo e o
-          CNPJ que você já cadastrou acima.
+          CNPJ cadastrados acima.
         </p>
 
         <Campo

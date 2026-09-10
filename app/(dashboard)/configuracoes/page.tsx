@@ -27,6 +27,10 @@ export default async function ConfiguracoesPage() {
     assinaturaUrl = assinada?.signedUrl ?? null;
   }
 
+  // O formato real do logo decide se ele entra no PDF. Guardar a extensão
+  // da URL basta aqui: quem envia agora sempre grava .png.
+  const logoCabeNoPdf = /\.(png|jpe?g)(\?|$)/i.test(perfil?.logo_url ?? "");
+
   return (
     <div>
       <h1 className="text-2xl mb-6" style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}>
@@ -52,6 +56,15 @@ export default async function ConfiguracoesPage() {
       />
 
       <div className="mt-8">
+        <MarcaDoNegocio
+          logoUrl={perfil?.logo_url ?? null}
+          corMarca={perfil?.cor_marca ?? null}
+          liberado={temRecurso(perfil, "marcaNoRecibo")}
+          logoCabeNoPdf={logoCabeNoPdf}
+        />
+      </div>
+
+      <div className="mt-8">
         <DadosDaEmpresa
           dados={
             {
@@ -67,14 +80,6 @@ export default async function ConfiguracoesPage() {
 
       <div className="mt-8">
         <Assinatura atual={assinaturaUrl} />
-      </div>
-
-      <div className="mt-8">
-        <MarcaDoNegocio
-          logoUrl={perfil?.logo_url ?? null}
-          corMarca={perfil?.cor_marca ?? null}
-          liberado={temRecurso(perfil, "marcaNoRecibo")}
-        />
       </div>
 
       <div className="mt-8">

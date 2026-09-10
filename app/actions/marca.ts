@@ -5,7 +5,6 @@ import { exigirUsuario } from "@/lib/auth";
 import { type EstadoForm, lerTexto } from "@/app/actions/tipos";
 import { COLUNAS_PLANO, planoEfetivo } from "@/lib/planos";
 
-const TIPOS_ACEITOS = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
 const TAMANHO_MAXIMO = 2 * 1024 * 1024;
 
 /**
@@ -44,26 +43,29 @@ export async function atualizarMarca(
     logoUrl = null;
   }
 
-  const arquivo = formData.get("logo");
-  if (arquivo instanceof File && arquivo.size > 0) {
-    if (!TIPOS_ACEITOS.includes(arquivo.type)) {
-      return { erro: "Envie o logo em PNG, JPG, WEBP ou SVG." };
+  // Chega como PNG já convertido no navegador. O upload aceita WebP e SVG
+  // porque é o que a pessoa tem em mãos, mas o `pdf-lib` só embute PNG e
+  // JPG — e um logo WebP sumia do PDF sem avisar ninguém. Converter na
+  // origem faz todo consumidor do logo funcionar.
+  const png = lerTexto(formData, "logo_png");
+  if (png) {
+    const prefixo = "data:image/png;base64,";
+    if (!png.startsWith(prefixo)) {
+      return { erro: "Formato de logo inesperado. Envie o arquivo de novo." };
     }
-    if (arquivo.size > TAMANHO_MAXIMO) {
+
+    const bytes = Buffer.from(png.slice(prefixo.length), "base64");
+    if (bytes.length > TAMANHO_MAXIMO) {
       return { erro: "O logo precisa ter até 2 MB." };
     }
 
     // Nome fixo por usuário: trocar o logo sobrescreve em vez de acumular
     // arquivos órfãos a cada troca.
-    const extensao = arquivo.type === "image/svg+xml" ? "svg" : arquivo.type.split("/")[1];
-    const caminho = `${user.id}/logo.${extensao}`;
+    const caminho = `${user.id}/logo.png`;
 
     const { error: erroUpload } = await supabase.storage
       .from("marcas")
-      .upload(caminho, Buffer.from(await arquivo.arrayBuffer()), {
-        contentType: arquivo.type,
-        upsert: true,
-      });
+      .upload(caminho, bytes, { contentType: "image/png", upsert: true });
 
     if (erroUpload) return { erro: "Não foi possível enviar o logo." };
 

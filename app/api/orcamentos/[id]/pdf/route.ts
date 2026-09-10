@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { gerarPdfOrcamento } from "@/lib/pdf-orcamento";
 import { formatarDocumento } from "@/lib/fiscal";
 import { COLUNAS_PLANO, temRecurso } from "@/lib/planos";
+import { cabeNoPdf, detectarFormato } from "@/lib/imagem-formato";
 
 /**
  * O orçamento como arquivo para anexar no WhatsApp.
@@ -57,11 +58,13 @@ export async function GET(
     try {
       const resposta = await fetch(perfil.logo_url);
       if (resposta.ok) {
-        const tipoConteudo = resposta.headers.get("content-type") ?? "";
-        logo = {
-          bytes: new Uint8Array(await resposta.arrayBuffer()),
-          tipo: tipoConteudo.includes("png") ? "png" : "jpg",
-        };
+        const bytes = new Uint8Array(await resposta.arrayBuffer());
+        // Pelos BYTES, não pelo content-type: o cabeçalho é o que o
+        // servidor diz, os primeiros bytes são o que o arquivo é. Deduzir
+        // pelo cabeçalho foi o que fez um logo WebP virar `embedJpg` e
+        // sumir do PDF sem erro nenhum.
+        const formato = detectarFormato(bytes);
+        if (cabeNoPdf(formato)) logo = { bytes, tipo: formato };
       }
     } catch {
       // Storage fora do ar não pode impedir a proposta de sair.
