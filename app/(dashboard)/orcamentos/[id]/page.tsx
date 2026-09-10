@@ -29,7 +29,7 @@ export default async function PropostaPage({
     supabase
       .from("documentos_venda")
       .select(
-        "id, numero, tipo, natureza, descricao_servico, valor, desconto, status, data_emissao, validade_em, condicoes_pagamento, prazo_execucao, garantia, observacoes, token_publico, aceito_em, aceito_por, clientes(nome, documento, telefone, email), itens_documento(descricao, quantidade, unidade, valor_unitario, total, ordem)"
+        "id, numero, tipo, natureza, descricao_servico, valor, desconto, desconto_percentual, status, data_emissao, validade_em, condicoes_pagamento, prazo_execucao, garantia, observacoes, token_publico, aceito_em, aceito_por, clientes(nome, documento, telefone, email), itens_documento(descricao, quantidade, unidade, valor_unitario, total, ordem)"
       )
       .eq("id", id)
       .eq("user_id", user.id)
@@ -70,7 +70,15 @@ export default async function PropostaPage({
 
   const rotulo = ROTULO_ORCAMENTO[situacao];
   const dias = diasDeValidade(data.validade_em, hojeISO);
-  const totais = calcularTotais(itens, Number(data.desconto ?? 0));
+  const totais = calcularTotais(
+    itens,
+    {
+      valor: Number(data.desconto ?? 0),
+      percentual:
+        data.desconto_percentual === null ? null : Number(data.desconto_percentual),
+    },
+    Number(data.valor) + Number(data.desconto ?? 0)
+  );
   const editavel = situacao === "rascunho" || situacao === "aguardando" || situacao === "vencido";
 
   return (

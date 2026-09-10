@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { exigirUsuario } from "@/lib/auth";
 import { hoje, lerNumeroBR } from "@/lib/formato";
 import { apenasDigitos, documentoValido } from "@/lib/fiscal";
-import { calcularTotais, validadeSugerida } from "@/lib/orcamento";
+import {
+  calcularTotais,
+  validadeSugerida,
+  type DescontoInformado,
+} from "@/lib/orcamento";
 import {
   type EstadoForm,
   lerOpcional,
@@ -55,6 +59,22 @@ function totalDoItem(item: ItemEntrada): number {
   return Math.round(item.quantidade * item.valorUnitario * 100) / 100;
 }
 
+/**
+ * Desconto em reais ou em percentual.
+ *
+ * Só um dos dois chega preenchido — o formulário manda o outro vazio, para
+ * o servidor não ter que adivinhar qual vale. O percentual é guardado como
+ * intenção: mudando os itens depois, o gatilho no banco recalcula o valor.
+ */
+function lerDesconto(formData: FormData): DescontoInformado {
+  if (lerTexto(formData, "desconto_tipo") === "percentual") {
+    const bruto = Number(lerTexto(formData, "desconto_percentual").replace(",", "."));
+    const percentual = Number.isFinite(bruto) && bruto > 0 && bruto <= 100 ? bruto : null;
+    return { percentual };
+  }
+  return { valor: lerValor(formData, "desconto") ?? 0 };
+}
+
 /** Campos que só existem em proposta, lidos em um lugar só. */
 function lerCamposDaProposta(formData: FormData, emissao: string) {
   return {
@@ -90,26 +110,17 @@ export async function criarOrcamento(
       ? itens.reduce((s, i) => s + totalDoItem(i), 0)
       : valorSolto ?? 0;
 
-  const desconto = lerValor(formData, "desconto") ?? 0;
+  const desconto = lerDesconto(formData);
   const totais = calcularTotais(
-    itens.length > 0
-      ? itens.map((i) => ({
-          descricao: i.descricao,
-          quantidade: i.quantidade,
-          unidade: i.unidade,
-          valor_unitario: i.valorUnitario,
-          total: totalDoItem(i),
-        }))
-      : [
-          {
-            descricao,
-            quantidade: 1,
-            unidade: "un",
-            valor_unitario: subtotal,
-            total: subtotal,
-          },
-        ],
-    desconto
+    itens.map((i) => ({
+      descricao: i.descricao,
+      quantidade: i.quantidade,
+      unidade: i.unidade,
+      valor_unitario: i.valorUnitario,
+      total: totalDoItem(i),
+    })),
+    desconto,
+    subtotal
   );
 
   if (totais.total === 0) {
@@ -167,6 +178,7 @@ export async function criarOrcamento(
       descricao_servico: descricao,
       valor: totais.total,
       desconto: totais.desconto,
+      desconto_percentual: desconto.percentual ?? null,
       // Proposta nunca nasce paga: não há dinheiro nenhum ainda.
       status: "pendente",
       cliente_id: clienteId,
@@ -242,28 +254,17 @@ export async function editarOrcamento(
 
   const itens = lerItens(formData);
   const valorSolto = lerValor(formData);
-  const desconto = lerValor(formData, "desconto") ?? 0;
+  const desconto = lerDesconto(formData);
 
-  const linhas =
-    itens.length > 0
-      ? itens.map((i) => ({
-          descricao: i.descricao,
-          quantidade: i.quantidade,
-          unidade: i.unidade,
-          valor_unitario: i.valorUnitario,
-          total: totalDoItem(i),
-        }))
-      : [
-          {
-            descricao,
-            quantidade: 1,
-            unidade: "un",
-            valor_unitario: valorSolto ?? 0,
-            total: valorSolto ?? 0,
-          },
-        ];
+  const linhas = itens.map((i) => ({
+    descricao: i.descricao,
+    quantidade: i.quantidade,
+    unidade: i.unidade,
+    valor_unitario: i.valorUnitario,
+    total: totalDoItem(i),
+  }));
 
-  const totais = calcularTotais(linhas, desconto);
+  const totais = calcularTotais(linhas, desconto, valorSolto ?? 0);
   if (totais.total === 0) {
     return { erro: "A proposta ficou sem valor. Confira os itens." };
   }
@@ -275,6 +276,7 @@ export async function editarOrcamento(
       natureza: lerTexto(formData, "natureza") || undefined,
       valor: totais.total,
       desconto: totais.desconto,
+      desconto_percentual: desconto.percentual ?? null,
       cliente_id: lerOpcional(formData, "cliente_id"),
       ...lerCamposDaProposta(formData, atual.data_emissao),
     })

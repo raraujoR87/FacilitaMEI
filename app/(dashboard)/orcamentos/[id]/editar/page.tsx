@@ -17,7 +17,7 @@ export default async function EditarPropostaPage({
     supabase
       .from("documentos_venda")
       .select(
-        "id, numero, tipo, natureza, descricao_servico, valor, desconto, status, data_emissao, validade_em, condicoes_pagamento, prazo_execucao, garantia, observacoes, cliente_id, aceito_em, aceito_por, token_publico, itens_documento(descricao, quantidade, unidade, valor_unitario, ordem)"
+        "id, numero, tipo, natureza, descricao_servico, valor, desconto, desconto_percentual, status, data_emissao, validade_em, condicoes_pagamento, prazo_execucao, garantia, observacoes, cliente_id, aceito_em, aceito_por, token_publico, itens_documento(descricao, quantidade, unidade, valor_unitario, ordem)"
       )
       .eq("id", id)
       .eq("user_id", user.id)
@@ -93,6 +93,8 @@ export default async function EditarPropostaPage({
           descricao_servico: data.descricao_servico,
           valor: Number(data.valor),
           desconto: Number(data.desconto ?? 0),
+          desconto_percentual:
+            data.desconto_percentual === null ? null : Number(data.desconto_percentual),
           validade_em: data.validade_em,
           condicoes_pagamento: data.condicoes_pagamento,
           prazo_execucao: data.prazo_execucao,

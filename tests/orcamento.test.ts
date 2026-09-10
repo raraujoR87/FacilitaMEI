@@ -44,22 +44,73 @@ test("convertido e cancelado saem do fluxo", () => {
   assert.equal(situacaoDoOrcamento({ ...base, status: "cancelado" }, "2026-09-30"), "recusado");
 });
 
-test("desconto abate do subtotal", () => {
-  const itens = [
-    { descricao: "Tinta", quantidade: 4, unidade: "lata", valor_unitario: 150, total: 600 },
-    { descricao: "Mão de obra", quantidade: 1, unidade: "un", valor_unitario: 900, total: 900 },
-  ];
-  const t = calcularTotais(itens, 150);
+const itens = [
+  { descricao: "Tinta", quantidade: 4, unidade: "lata", valor_unitario: 150, total: 600 },
+  { descricao: "Mão de obra", quantidade: 1, unidade: "un", valor_unitario: 900, total: 900 },
+];
+
+test("desconto em reais abate do subtotal", () => {
+  const t = calcularTotais(itens, { valor: 150 });
   assert.equal(t.subtotal, 1500);
   assert.equal(t.total, 1350);
   assert.equal(t.percentualDesconto, 10);
 });
 
+test("desconto em percentual vira reais sobre o subtotal", () => {
+  const t = calcularTotais(itens, { percentual: 10 });
+  assert.equal(t.desconto, 150);
+  assert.equal(t.total, 1350);
+});
+
+test("percentual manda sobre o valor quando os dois vêm", () => {
+  // O formulário manda um dos dois vazio, mas se ambos chegarem a
+  // intenção guardada é a porcentagem.
+  const t = calcularTotais(itens, { valor: 999, percentual: 10 });
+  assert.equal(t.desconto, 150);
+});
+
+test("percentual acompanha a mudança dos itens", () => {
+  // É o que "10%" significa para quem digitou: acrescentou item, o
+  // desconto cresce junto.
+  const maiores = [...itens, { descricao: "Extra", quantidade: 1, unidade: "un", valor_unitario: 500, total: 500 }];
+  assert.equal(calcularTotais(maiores, { percentual: 10 }).desconto, 200);
+});
+
+test("proposta sem itens usa o subtotal informado", () => {
+  // O bug: sem itens a soma dava zero e o PDF saía com TOTAL de R$ 0,00,
+  // parecendo serviço de graça.
+  const t = calcularTotais([], { valor: 100 }, 580);
+  assert.equal(t.subtotal, 580);
+  assert.equal(t.total, 480);
+});
+
+test("sem itens e sem subtotal informado continua zero", () => {
+  assert.equal(calcularTotais([], { valor: 100 }).total, 0);
+});
+
 test("desconto maior que o subtotal não vira total negativo", () => {
-  // Erro de digitação não pode fazer a proposta cobrar valor negativo.
-  const t = calcularTotais([{ descricao: "a", quantidade: 1, unidade: "un", valor_unitario: 100, total: 100 }], 500);
+  // Erro de digitação não pode fazer a proposta cobrar ao contrário.
+  const t = calcularTotais(itens, { valor: 5000 });
   assert.equal(t.total, 0);
-  assert.equal(t.desconto, 100);
+  assert.equal(t.desconto, 1500);
+});
+
+test("percentual de 100 zera sem passar do zero", () => {
+  const t = calcularTotais(itens, { percentual: 100 });
+  assert.equal(t.total, 0);
+  assert.equal(t.desconto, 1500);
+});
+
+test("desconto como número puro ainda funciona", () => {
+  // Compatibilidade: chamadas antigas passavam só o valor em reais.
+  assert.equal(calcularTotais(itens, 150).total, 1350);
+});
+
+test("centavos do percentual são arredondados uma vez só", () => {
+  const quebrado = [{ descricao: "x", quantidade: 3, unidade: "un", valor_unitario: 33.33, total: 99.99 }];
+  const t = calcularTotais(quebrado, { percentual: 7.5 });
+  assert.equal(t.desconto, 7.5);
+  assert.equal(t.total, 92.49);
 });
 
 test("dias de validade contam do jeito humano", () => {

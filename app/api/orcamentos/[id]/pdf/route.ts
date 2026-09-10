@@ -28,7 +28,7 @@ export async function GET(
     supabase
       .from("documentos_venda")
       .select(
-        "id, numero, tipo, natureza, descricao_servico, valor, desconto, data_emissao, validade_em, condicoes_pagamento, prazo_execucao, garantia, observacoes, token_publico, clientes(nome, documento, telefone, email), itens_documento(descricao, quantidade, unidade, valor_unitario, total, ordem)"
+        "id, numero, tipo, natureza, descricao_servico, valor, desconto, desconto_percentual, data_emissao, validade_em, condicoes_pagamento, prazo_execucao, garantia, observacoes, token_publico, clientes(nome, documento, telefone, email), itens_documento(descricao, quantidade, unidade, valor_unitario, total, ordem)"
       )
       .eq("id", id)
       .eq("user_id", user.id)
@@ -117,6 +117,9 @@ export async function GET(
       dataEmissao: doc.data_emissao,
       validadeEm: doc.validade_em,
       desconto: Number(doc.desconto ?? 0),
+      descontoPercentual:
+        doc.desconto_percentual === null ? null : Number(doc.desconto_percentual),
+      valorTotal: Number(doc.valor),
       itens,
       condicoesPagamento: doc.condicoes_pagamento,
       prazoExecucao: doc.prazo_execucao,

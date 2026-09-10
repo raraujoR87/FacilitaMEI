@@ -98,16 +98,47 @@ export type Totais = {
   percentualDesconto: number | null;
 };
 
+export type DescontoInformado = {
+  /** Em reais. Ignorado quando há percentual. */
+  valor?: number | null;
+  /** Em %, de 0 a 100. Manda quando existe. */
+  percentual?: number | null;
+};
+
 /**
  * O fechamento da proposta.
  *
  * O total sai daqui e não da soma solta: com desconto, o valor dos itens
  * deixa de ser o que o cliente paga, e ter duas verdades num documento de
  * preço é como o PIX acaba cobrando diferente do que está escrito.
+ *
+ * `subtotalSemItens` existe porque nem toda proposta é detalhada. Sem ele,
+ * uma proposta de valor único somava zero e o PDF saía com TOTAL de
+ * R$ 0,00 — parecendo serviço de graça.
  */
-export function calcularTotais(itens: ItemOrcamento[], desconto: number): Totais {
-  const subtotal = Math.round(itens.reduce((s, i) => s + Number(i.total), 0) * 100) / 100;
-  const abatimento = Math.min(Math.max(desconto, 0), subtotal);
+export function calcularTotais(
+  itens: ItemOrcamento[],
+  desconto: DescontoInformado | number = {},
+  subtotalSemItens = 0
+): Totais {
+  const informado: DescontoInformado =
+    typeof desconto === "number" ? { valor: desconto } : desconto;
+
+  const subtotal =
+    itens.length > 0
+      ? Math.round(itens.reduce((s, i) => s + Number(i.total), 0) * 100) / 100
+      : Math.round(Math.max(subtotalSemItens, 0) * 100) / 100;
+
+  // Percentual manda quando existe: mudando os itens, o desconto
+  // acompanha, que é o que "10%" significa para quem digitou.
+  const bruto =
+    informado.percentual != null && informado.percentual > 0
+      ? Math.round(subtotal * (informado.percentual / 100) * 100) / 100
+      : Math.max(informado.valor ?? 0, 0);
+
+  // Desconto maior que o subtotal não pode virar total negativo: erro de
+  // digitação não cobra do cliente ao contrário.
+  const abatimento = Math.min(bruto, subtotal);
   const total = Math.round((subtotal - abatimento) * 100) / 100;
 
   return {

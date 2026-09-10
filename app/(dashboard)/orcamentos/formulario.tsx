@@ -7,6 +7,7 @@ import { ESTADO_INICIAL } from "@/app/actions/tipos";
 import { Aviso } from "@/components/ui/campos";
 import { BotaoSubmit } from "@/components/ui/botao-submit";
 import { CampoValor } from "@/components/ui/campo-valor";
+import { CampoDesconto } from "@/components/ui/campo-desconto";
 import { ItensDocumento } from "@/components/ui/itens-documento";
 import { hoje } from "@/lib/formato";
 import { situacaoFiscal } from "@/lib/fiscal";
@@ -201,7 +202,7 @@ export function FormularioOrcamento({ clientes }: { clientes: ClienteOpcao[] }) 
 
       <div className="grid gap-4 sm:grid-cols-2">
         {!detalhado && <CampoValor label="Valor total" />}
-        <CampoValor nome="desconto" label="Desconto" />
+        <CampoDesconto />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

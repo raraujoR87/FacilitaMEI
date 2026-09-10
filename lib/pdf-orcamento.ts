@@ -62,6 +62,9 @@ export type DadosOrcamento = {
   dataEmissao: string;
   validadeEm: string | null;
   desconto: number;
+  descontoPercentual: number | null;
+  /** Total já gravado. É a única referência quando não há itens. */
+  valorTotal: number;
   itens: ItemOrcamento[];
   condicoesPagamento: string | null;
   prazoExecucao: string | null;
@@ -323,7 +326,14 @@ export async function gerarPdfOrcamento(
           },
         ];
 
-  const totais = calcularTotais(orcamento.itens, orcamento.desconto);
+  // Sem itens, o subtotal é o total gravado somado ao desconto — antes
+  // disso a soma dava zero e o PDF saía com TOTAL de R$ 0,00, parecendo
+  // serviço de graça.
+  const totais = calcularTotais(
+    orcamento.itens,
+    { valor: orcamento.desconto, percentual: orcamento.descontoPercentual },
+    orcamento.valorTotal + orcamento.desconto
+  );
 
   if (orcamento.itens.length > 0) {
     titulo(ctx, "Detalhamento");

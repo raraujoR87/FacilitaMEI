@@ -6,6 +6,7 @@ import { ESTADO_INICIAL } from "@/app/actions/tipos";
 import { Aviso } from "@/components/ui/campos";
 import { BotaoSubmit } from "@/components/ui/botao-submit";
 import { CampoValor } from "@/components/ui/campo-valor";
+import { CampoDesconto } from "@/components/ui/campo-desconto";
 import { ItensDocumento, type LinhaItem } from "@/components/ui/itens-documento";
 
 type OrcamentoEditavel = {
@@ -14,6 +15,7 @@ type OrcamentoEditavel = {
   descricao_servico: string;
   valor: number;
   desconto: number;
+  desconto_percentual: number | null;
   validade_em: string | null;
   condicoes_pagamento: string | null;
   prazo_execucao: string | null;
@@ -114,10 +116,10 @@ export function FormularioEdicaoOrcamento({
             centavosIniciais={Math.round(orcamento.valor * 100)}
           />
         )}
-        <CampoValor
-          nome="desconto"
-          label="Desconto"
-          centavosIniciais={Math.round(orcamento.desconto * 100)}
+        <CampoDesconto
+          tipoInicial={orcamento.desconto_percentual != null ? "percentual" : "valor"}
+          valorInicial={orcamento.desconto}
+          percentualInicial={orcamento.desconto_percentual}
         />
       </div>
 
