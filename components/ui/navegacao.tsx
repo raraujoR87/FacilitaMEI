@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  FileText,
   Receipt,
   Settings,
   ShieldCheck,
@@ -29,12 +30,13 @@ type Item = { href: string; label: string; curto: string; Icone: LucideIcon };
 export const ITENS_PRINCIPAIS: Item[] = [
   { href: "/dashboard", label: "Visão geral", curto: "Início", Icone: LayoutDashboard },
   { href: "/movimento", label: "Movimento", curto: "Movimento", Icone: Wallet },
+  { href: "/orcamentos", label: "Orçamentos", curto: "Orçar", Icone: FileText },
   { href: "/cobranca", label: "A receber", curto: "Receber", Icone: HandCoins },
-  { href: "/nota-fiscal", label: "Nota fiscal", curto: "Notas", Icone: Receipt },
 ];
 
 export const ITENS_SECUNDARIOS: Item[] = [
   { href: "/clientes", label: "Clientes", curto: "Clientes", Icone: Users },
+  { href: "/nota-fiscal", label: "Nota fiscal", curto: "Notas", Icone: Receipt },
   { href: "/relatorio", label: "Relatório", curto: "Relatório", Icone: ChartColumn },
   { href: "/planos", label: "Plano e cobrança", curto: "Plano", Icone: Sparkles },
   { href: "/configuracoes", label: "Configurações", curto: "Ajustes", Icone: Settings },

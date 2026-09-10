@@ -90,7 +90,6 @@ export function Formularios({
 function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
   const [estado, acao] = useActionState(criarDocumento, ESTADO_INICIAL);
   const [natureza, setNatureza] = useState<"servico" | "produto">("servico");
-  const [tipo, setTipo] = useState<"recibo" | "orcamento">("recibo");
   const [recebido, setRecebido] = useState(true);
   const [clienteId, setClienteId] = useState("");
   const [docNovo, setDocNovo] = useState("");
@@ -286,23 +285,17 @@ function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
             value="sim"
             checked={recebido}
             onChange={(e) => setRecebido(e.target.checked)}
-            disabled={tipo === "orcamento"}
           />
           Já recebi o valor
         </label>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={tipo === "orcamento"}
-            onChange={(e) => setTipo(e.target.checked ? "orcamento" : "recibo")}
-          />
-          É só um orçamento
-        </label>
-        <input type="hidden" name="tipo" value={tipo} />
+        {/* Orçamento saiu daqui: proposta não é lançamento. Vive em
+            /orcamentos, com validade, condições e prazo — campos que não
+            cabiam num formulário de "entrou dinheiro". */}
+        <input type="hidden" name="tipo" value="recibo" />
       </div>
 
-      {!recebido && tipo === "recibo" && (
+      {!recebido && (
         <div className="sm:max-w-xs">
           <label className="rotulo" htmlFor="data_vencimento">
             Vence em
@@ -318,9 +311,7 @@ function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
       <Aviso estado={estado} />
 
       <div className="flex justify-end">
-        <BotaoSubmit carregando="Emitindo...">
-          {tipo === "orcamento" ? "Emitir orçamento" : "Emitir recibo"}
-        </BotaoSubmit>
+        <BotaoSubmit carregando="Emitindo...">Emitir recibo</BotaoSubmit>
       </div>
     </form>
   );
