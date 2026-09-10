@@ -115,8 +115,8 @@ export default async function PropostaPage({
           <CircleCheck size={16} aria-hidden style={{ color: "var(--positivo)" }} />
           <span>
             Aceito por <strong>{data.aceito_por}</strong> em{" "}
-            {formatarMomento(data.aceito_em)}. Gere a cobrança para o valor
-            entrar em &quot;A receber&quot;.
+            {formatarMomento(data.aceito_em)}. Quando ele pagar, inclua no
+            movimento — o valor entra no caixa e o recibo segue corrigível.
           </span>
         </p>
       )}

@@ -463,6 +463,20 @@ async function sincronizarReceita(
  * a proposta é história. Nasce um recibo novo apontando para a origem, com
  * os mesmos itens — sem redigitar nada, que é o ponto.
  */
+/**
+ * Do orçamento aceito ao recibo, sem redigitar.
+ *
+ * Dois destinos, porque o aceite e o pagamento não acontecem juntos:
+ *
+ * - `pago = sim`: o cliente já pagou. O recibo nasce quitado, a receita
+ *   entra no movimento na hora e o dinheiro aparece no caixa. É o caminho
+ *   comum — o MEI só volta ao app depois de receber.
+ * - sem `pago`: aceitou mas ainda não pagou. Vira cobrança em "A receber",
+ *   e o dinheiro só entra quando a baixa for dada.
+ *
+ * O recibo continua editável nos dois casos: corrigir valor depois é
+ * comum, e `editarDocumento` já acerta a receita junto quando está pago.
+ */
 export async function gerarReciboDeOrcamento(
   _anterior: EstadoForm,
   formData: FormData
@@ -475,7 +489,7 @@ export async function gerarReciboDeOrcamento(
   const { data: orcamento } = await supabase
     .from("documentos_venda")
     .select(
-      "id, numero, tipo, natureza, descricao_servico, valor, cliente_id, observacoes, aceito_em, status, itens_documento(descricao, quantidade, unidade, valor_unitario, ordem)"
+      "id, numero, tipo, natureza, descricao_servico, valor, desconto, desconto_percentual, cliente_id, observacoes, aceito_em, status, itens_documento(descricao, quantidade, unidade, valor_unitario, ordem)"
     )
     .eq("id", id)
     .eq("user_id", user.id)
@@ -485,6 +499,10 @@ export async function gerarReciboDeOrcamento(
   if (orcamento.tipo !== "orcamento") return { erro: "Este documento não é um orçamento." };
   if (orcamento.status === "cancelado") return { erro: "Orçamento cancelado." };
 
+  // Incluir no movimento significa que o cliente pagou: o registro é do
+  // dinheiro que já entrou, não de uma promessa.
+  const jaPago = lerTexto(formData, "pago") === "sim";
+
   const { data: recibo, error } = await supabase
     .from("documentos_venda")
     .insert({
@@ -493,7 +511,14 @@ export async function gerarReciboDeOrcamento(
       natureza: orcamento.natureza,
       descricao_servico: orcamento.descricao_servico,
       valor: orcamento.valor,
-      status: "pendente",
+      // O desconto vem junto. Sem ele o recibo sairia pela soma crua dos
+      // itens — cobrando do cliente mais do que ele aceitou.
+      desconto: orcamento.desconto ?? 0,
+      desconto_percentual: orcamento.desconto_percentual ?? null,
+      status: jaPago ? "pago" : "pendente",
+      // `pago_em` sustenta a leitura de comportamento de pagamento: sem a
+      // data da baixa não dá para saber quem paga em dia e quem atrasa.
+      pago_em: jaPago ? new Date().toISOString() : null,
       cliente_id: orcamento.cliente_id,
       data_emissao: hoje(),
       observacoes: orcamento.observacoes,
@@ -535,6 +560,13 @@ export async function gerarReciboDeOrcamento(
     );
   }
 
+  // A receita entra DEPOIS dos itens: o gatilho de recálculo ajusta o
+  // valor do documento quando eles chegam, e lançar antes gravaria o total
+  // anterior no movimento.
+  if (jaPago) {
+    await lancarReceita(supabase, user.id, recibo.id);
+  }
+
   // Sai de cena como "convertido", não como "pago": proposta não é dinheiro
   // recebido, e marcar assim faria o relatório por status contar errado.
   await supabase
@@ -544,7 +576,11 @@ export async function gerarReciboDeOrcamento(
     .eq("user_id", user.id);
 
   revalidarEntradas();
+  revalidatePath("/orcamentos");
+
   return {
-    sucesso: `Recibo #${recibo.numero} emitido a partir do orçamento #${orcamento.numero}.`,
+    sucesso: jaPago
+      ? `Recibo #${recibo.numero} incluído no movimento. Dá para corrigir valores por lá.`
+      : `Recibo #${recibo.numero} emitido. Está em "A receber" até você dar a baixa.`,
   };
 }

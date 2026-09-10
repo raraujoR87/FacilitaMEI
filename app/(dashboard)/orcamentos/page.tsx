@@ -133,7 +133,7 @@ export default async function OrcamentosPage({
                     #{o.numero} · {o.descricao_servico}
                   </span>
                   <span className="block text-xs" style={{ color: "var(--positivo)" }}>
-                    aceito por {o.aceito_por} — falta gerar a cobrança
+                    aceito por {o.aceito_por} — falta incluir no movimento
                   </span>
                 </span>
                 <span className="valor shrink-0">{formatarMoeda(Number(o.valor))}</span>
