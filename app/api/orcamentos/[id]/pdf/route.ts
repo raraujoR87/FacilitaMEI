@@ -35,7 +35,7 @@ export async function GET(
     supabase
       .from("perfis")
       .select(
-        `nome_negocio, cnpj, endereco, municipio, uf, telefone_whatsapp, email_contato, assinatura_nome, assinatura_titulo, logo_url, cor_marca, ${COLUNAS_PLANO}`
+        `nome_negocio, cnpj, endereco, municipio, uf, telefone_whatsapp, email_contato, assinatura_nome, assinatura_titulo, assinatura_caminho, logo_url, cor_marca, ${COLUNAS_PLANO}`
       )
       .eq("id", user.id)
       .single(),
@@ -69,6 +69,17 @@ export async function GET(
     }
   }
 
+  // Assinatura vem de bucket privado, baixada com a sessão do dono — não
+  // há URL pública para ela, e é isso que impede alguém de copiá-la para
+  // outro documento.
+  let assinatura: Uint8Array | null = null;
+  if (perfil?.assinatura_caminho) {
+    const { data: arquivo } = await supabase.storage
+      .from("assinaturas")
+      .download(perfil.assinatura_caminho);
+    if (arquivo) assinatura = new Uint8Array(await arquivo.arrayBuffer());
+  }
+
   const itens = [...(doc.itens_documento ?? [])].sort(
     (a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)
   );
@@ -87,6 +98,7 @@ export async function GET(
       assinaturaNome: perfil?.assinatura_nome ?? null,
       assinaturaTitulo: perfil?.assinatura_titulo ?? null,
       logo,
+      assinatura,
       corMarca: comMarca ? perfil?.cor_marca ?? null : null,
     },
     {

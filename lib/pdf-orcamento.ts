@@ -43,6 +43,8 @@ export type DadosEmpresa = {
   assinaturaTitulo: string | null;
   /** Bytes do logo, já baixados. Nulo quando não há ou o plano não permite. */
   logo: { bytes: Uint8Array; tipo: "png" | "jpg" } | null;
+  /** PNG da assinatura desenhada, já baixado do bucket privado. */
+  assinatura: Uint8Array | null;
   corMarca: string | null;
 };
 
@@ -430,9 +432,30 @@ export async function gerarPdfOrcamento(
   }
 
   // ---------- Assinatura ----------
-  garantirEspaco(ctx, 90);
+  garantirEspaco(ctx, 130);
   ctx.y -= 34;
   const meio = MARGEM + LARGURA_UTIL / 2;
+
+  // O desenho fica ACIMA da linha, como numa folha assinada à mão. Sem a
+  // linha embaixo, a imagem solta no branco parece um rabisco perdido.
+  if (empresa.assinatura) {
+    try {
+      const img = await doc.embedPng(empresa.assinatura);
+      const escala = Math.min(190 / img.width, 54 / img.height, 1);
+      const largura = img.width * escala;
+      const altura = img.height * escala;
+      ctx.pagina.drawImage(img, {
+        x: meio - largura / 2,
+        y: ctx.y + 4,
+        width: largura,
+        height: altura,
+      });
+    } catch {
+      // Assinatura corrompida não pode impedir a proposta de sair: a
+      // linha e o nome continuam valendo.
+    }
+  }
+
   ctx.pagina.drawLine({
     start: { x: meio - 110, y: ctx.y },
     end: { x: meio + 110, y: ctx.y },
