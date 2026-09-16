@@ -28,6 +28,8 @@ type ItemEntrada = {
   quantidade: number;
   unidade: string;
   valorUnitario: number;
+  catalogoItemId: string | null;
+  custoUnitario: number;
 };
 
 /**
@@ -42,6 +44,11 @@ function lerItens(formData: FormData): ItemEntrada[] {
   const quantidades = formData.getAll("item_quantidade").map(String);
   const unidades = formData.getAll("item_unidade").map(String);
   const valores = formData.getAll("item_valor").map(String);
+  // Vêm do catálogo, quando a linha foi escolhida em vez de digitada. O
+  // custo é fotografia: mudar o catálogo depois não pode reescrever a
+  // margem de um trabalho já entregue.
+  const catalogo = formData.getAll("item_catalogo_id").map(String);
+  const custos = formData.getAll("item_custo").map(String);
 
   return descricoes
     .map((descricao, i) => ({
@@ -49,6 +56,8 @@ function lerItens(formData: FormData): ItemEntrada[] {
       quantidade: lerNumeroBR(quantidades[i] ?? "1"),
       unidade: (unidades[i] ?? "un").trim() || "un",
       valorUnitario: lerNumeroBR(valores[i] ?? "0"),
+      catalogoItemId: (catalogo[i] ?? "").trim() || null,
+      custoUnitario: lerNumeroBR(custos[i] ?? "0"),
     }))
     .filter((item) => item.descricao !== "" && item.quantidade > 0);
 }
@@ -199,6 +208,8 @@ export async function criarOrcamento(
         quantidade: item.quantidade,
         unidade: item.unidade,
         valor_unitario: item.valorUnitario,
+        catalogo_item_id: item.catalogoItemId,
+        custo_unitario: item.custoUnitario,
         ordem: i + 1,
       }))
     );
@@ -298,6 +309,8 @@ export async function editarOrcamento(
         quantidade: item.quantidade,
         unidade: item.unidade,
         valor_unitario: item.valorUnitario,
+        catalogo_item_id: item.catalogoItemId,
+        custo_unitario: item.custoUnitario,
         ordem: i + 1,
       }))
     );

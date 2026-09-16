@@ -12,6 +12,7 @@ import { ItensDocumento } from "@/components/ui/itens-documento";
 import { hoje } from "@/lib/formato";
 import { situacaoFiscal } from "@/lib/fiscal";
 import { validadeSugerida, VALIDADE_PADRAO_DIAS } from "@/lib/orcamento";
+import type { ItemCatalogo } from "@/lib/catalogo";
 
 export type ClienteOpcao = { id: string; nome: string; documento: string | null };
 
@@ -23,7 +24,13 @@ export type ClienteOpcao = { id: string; nome: string; documento: string | null 
  * moravam no mesmo lugar, o orçamento herdava campos que não são dele
  * ("já recebi o valor") e não tinha os que são (validade, condições).
  */
-export function FormularioOrcamento({ clientes }: { clientes: ClienteOpcao[] }) {
+export function FormularioOrcamento({
+  clientes,
+  catalogo,
+}: {
+  clientes: ClienteOpcao[];
+  catalogo: ItemCatalogo[];
+}) {
   const [estado, acao] = useActionState(criarOrcamento, ESTADO_INICIAL);
   const [aberto, setAberto] = useState(false);
   const [natureza, setNatureza] = useState<"servico" | "produto">("servico");
@@ -198,7 +205,7 @@ export function FormularioOrcamento({ clientes }: { clientes: ClienteOpcao[] }) 
 
       {/* Detalhado por padrão, ao contrário do recibo: proposta sem itens é
           só um número, e o cliente negocia no escuro. */}
-      <ItensDocumento ativo={detalhado} aoAlternar={setDetalhado} />
+      <ItensDocumento ativo={detalhado} aoAlternar={setDetalhado} catalogo={catalogo} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         {!detalhado && <CampoValor label="Valor total" />}

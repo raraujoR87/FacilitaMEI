@@ -45,6 +45,7 @@ export async function proxy(request: NextRequest) {
     "/recibo",
     "/vendas",
     "/cobranca",
+    "/catalogo",
     "/clientes",
     "/relatorio",
     "/configuracoes",

@@ -20,6 +20,7 @@ import { LinhaMovimento } from "./linha-movimento";
 import { ContasFixas } from "./contas-fixas";
 import type { ContaFixa } from "@/lib/recorrentes";
 import { ehNaturezaSaida, SAIDA, type NaturezaSaida } from "@/lib/lancamentos";
+import type { ItemCatalogo } from "@/lib/catalogo";
 
 type Um<T> = T | T[] | null;
 function um<T>(v: Um<T>): T | null {
@@ -88,6 +89,7 @@ export default async function MovimentoPage({
     { data: trabalhos },
     { data: fixas },
     { data: perfil },
+    { data: catalogo },
   ] = await Promise.all([
     supabase
       .from("lancamentos")
@@ -124,6 +126,11 @@ export default async function MovimentoPage({
       .limit(40),
     supabase.rpc("contas_fixas_do_mes", { mes: inicio }),
     supabase.from("perfis").select("valor_das").eq("id", user.id).single(),
+    supabase
+      .from("itens_catalogo")
+      .select("id, nome, natureza, preco, custo, unidade, arquivado_em")
+      .eq("user_id", user.id)
+      .is("arquivado_em", null),
   ]);
 
   const todos = (lancamentos ?? []) as Linha[];
@@ -211,6 +218,7 @@ export default async function MovimentoPage({
         trabalhos={listaTrabalhos}
         naturezaInicial={naturezaInicial}
         valorDasPadrao={perfil?.valor_das ?? null}
+        catalogo={(catalogo ?? []) as ItemCatalogo[]}
       />
 
       <ContasFixas

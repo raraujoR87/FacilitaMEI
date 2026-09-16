@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { formatarCentavos, formatarMoeda, lerNumeroBR } from "@/lib/formato";
+import { ordenarCatalogo, type ItemCatalogo } from "@/lib/catalogo";
 
 export type LinhaItem = {
   chave: number;
@@ -10,12 +11,24 @@ export type LinhaItem = {
   quantidade: string;
   unidade: string;
   centavos: number;
+  /** De onde veio, quando veio do catálogo. */
+  catalogoId?: string;
+  /** Custo fotografado na hora: mudar o catálogo depois não reescreve isto. */
+  custoCentavos?: number;
 };
 
 const UNIDADES = ["un", "h", "kg", "m", "m²", "dia", "serviço"];
 
 export function linhaVazia(chave: number): LinhaItem {
-  return { chave, descricao: "", quantidade: "1", unidade: "un", centavos: 0 };
+  return {
+    chave,
+    descricao: "",
+    quantidade: "1",
+    unidade: "un",
+    centavos: 0,
+    catalogoId: "",
+    custoCentavos: 0,
+  };
 }
 
 /** "2,5" e "2.5" significam a mesma coisa para quem digita. */
@@ -41,11 +54,14 @@ export function ItensDocumento({
   ativo,
   aoAlternar,
   iniciais,
+  catalogo = [],
 }: {
   ativo: boolean;
   aoAlternar: (ativo: boolean) => void;
   /** Linhas já existentes, ao editar um documento. */
   iniciais?: LinhaItem[];
+  /** O que já está cadastrado, para não redigitar preço e descrição. */
+  catalogo?: ItemCatalogo[];
 }) {
   const [linhas, setLinhas] = useState<LinhaItem[]>(
     iniciais && iniciais.length > 0 ? iniciais : [linhaVazia(1)]
@@ -57,6 +73,30 @@ export function ItensDocumento({
     setLinhas((atual) =>
       atual.map((l) => (l.chave === chave ? { ...l, ...mudanca } : l))
     );
+  }
+
+  const doCatalogo = ordenarCatalogo(catalogo);
+
+  /**
+   * Preenche a linha com o item escolhido.
+   *
+   * O preço entra editável: o cadastro é o ponto de partida, não uma
+   * tabela fixa — desconto de balcão e serviço mais complicado que o
+   * normal são o caso comum, não a exceção.
+   */
+  function usarDoCatalogo(chave: number, id: string) {
+    const item = catalogo.find((c) => c.id === id);
+    if (!item) {
+      atualizar(chave, { catalogoId: "", custoCentavos: 0 });
+      return;
+    }
+    atualizar(chave, {
+      catalogoId: item.id,
+      descricao: item.nome,
+      unidade: item.unidade,
+      centavos: Math.round(Number(item.preco) * 100),
+      custoCentavos: Math.round(Number(item.custo) * 100),
+    });
   }
 
   function adicionar() {
@@ -113,10 +153,35 @@ export function ItensDocumento({
                   </button>
                 </div>
 
+                {doCatalogo.length > 0 && (
+                  <select
+                    value={linha.catalogoId ?? ""}
+                    onChange={(e) => usarDoCatalogo(linha.chave, e.target.value)}
+                    aria-label={`Usar item do catálogo na linha ${i + 1}`}
+                    className="campo mb-2"
+                  >
+                    <option value="">Digitar na mão</option>
+                    {doCatalogo.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome} · {formatarMoeda(Number(c.preco))}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
                 <input
                   name="item_descricao"
                   value={linha.descricao}
-                  onChange={(e) => atualizar(linha.chave, { descricao: e.target.value })}
+                  onChange={(e) =>
+                    // Mexer na descrição desfaz o vínculo: o que sai no
+                    // documento passa a ser outra coisa, e manter o custo
+                    // do item original faria a margem mentir.
+                    atualizar(linha.chave, {
+                      descricao: e.target.value,
+                      catalogoId: "",
+                      custoCentavos: 0,
+                    })
+                  }
                   placeholder="Descrição do item"
                   autoComplete="off"
                   className="campo mb-2"
@@ -183,6 +248,18 @@ export function ItensDocumento({
                       type="hidden"
                       name="item_valor"
                       value={(linha.centavos / 100).toFixed(2)}
+                    />
+                    {/* Sempre emitidos, mesmo vazios: o servidor lê os
+                        campos por posição, e pular um desalinha tudo. */}
+                    <input
+                      type="hidden"
+                      name="item_catalogo_id"
+                      value={linha.catalogoId ?? ""}
+                    />
+                    <input
+                      type="hidden"
+                      name="item_custo"
+                      value={((linha.custoCentavos ?? 0) / 100).toFixed(2)}
                     />
                   </div>
                 </div>

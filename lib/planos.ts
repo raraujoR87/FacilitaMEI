@@ -33,6 +33,10 @@ export const LIMITES_FREE = {
   clientes: 5,
   itensPorDocumento: 3,
   contasFixas: 3,
+  // Mais folgado que os outros de propósito: o catálogo existe para tirar
+  // digitação do dia a dia, e um teto apertado devolveria o atrito justo a
+  // quem ainda não virou cliente.
+  itensDeCatalogo: 15,
 } as const;
 
 export type IdPlano = "free" | "pro";
@@ -63,6 +67,7 @@ export const PLANOS: Record<IdPlano, Plano> = {
       "Alerta do teto do MEI",
       "Relatório do mês em PDF e planilha",
       "Contas fixas lembradas todo mês, para lançar num toque",
+      `Catálogo de até ${LIMITES_FREE.itensDeCatalogo} produtos e serviços, para não redigitar preço`,
       `Até ${LIMITES_FREE.clientes} clientes, ${LIMITES_FREE.itensPorDocumento} itens por documento e ${LIMITES_FREE.contasFixas} contas fixas`,
       `${LIMITE_NOTAS_FREE} despesas lidas por foto no mês`,
     ],
@@ -78,7 +83,7 @@ export const PLANOS: Record<IdPlano, Plano> = {
       "Seu logo e sua cor no recibo",
       "Link do recibo para mandar no WhatsApp, com PIX embutido",
       "Cliente aceita o orçamento pelo link",
-      "Clientes, itens e contas fixas sem limite",
+      "Catálogo, clientes e contas fixas sem limite",
       `Até ${LIMITE_NOTAS_PRO} despesas lidas por foto no mês`,
       "Tudo do plano grátis",
     ],

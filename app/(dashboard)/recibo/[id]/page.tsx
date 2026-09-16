@@ -10,6 +10,7 @@ import { BotaoImprimir } from "@/app/(dashboard)/relatorio/botao-imprimir";
 import { formatarMomento } from "@/lib/formato";
 import { COLUNAS_PLANO, temRecurso } from "@/lib/planos";
 import { calcularMargem, corDaMargem, faixaDaMargem } from "@/lib/margem";
+import { comporCusto } from "@/lib/catalogo";
 import { Compartilhar } from "./compartilhar";
 
 type Item = {
@@ -18,6 +19,7 @@ type Item = {
   unidade: string;
   valor_unitario: number;
   total: number;
+  custo_unitario: number | null;
 };
 
 type Documento = {
@@ -54,7 +56,7 @@ export default async function ReciboPage({
     supabase
       .from("documentos_venda")
       .select(
-        "id, numero, tipo, natureza, descricao_servico, valor, status, data_emissao, data_vencimento, observacoes, nf_numero, token_publico, aceito_em, aceito_por, clientes(nome, documento, telefone), itens_documento(descricao, quantidade, unidade, valor_unitario, total)"
+        "id, numero, tipo, natureza, descricao_servico, valor, status, data_emissao, data_vencimento, observacoes, nf_numero, token_publico, aceito_em, aceito_por, clientes(nome, documento, telefone), itens_documento(descricao, quantidade, unidade, valor_unitario, total, custo_unitario)"
       )
       .eq("id", id)
       .eq("user_id", user.id)
@@ -106,8 +108,21 @@ export default async function ReciboPage({
       : null;
 
   const listaCustos = custos ?? [];
-  const totalCusto = listaCustos.reduce((soma, c) => soma + Number(c.valor), 0);
-  const margem = calcularMargem(Number(doc.valor), totalCusto);
+  const totalDespesas = listaCustos.reduce((soma, c) => soma + Number(c.valor), 0);
+
+  // Duas origens: o catálogo sabe o custo do que foi vendido; a despesa
+  // vinculada cobre o que não estava no catálogo — frete, ajudante, peça
+  // comprada só para aquele trabalho. Ficam separadas na tela porque somar
+  // em silêncio esconderia uma dupla contagem.
+  const composicao = comporCusto(
+    itens.map((i) => ({
+      quantidade: Number(i.quantidade),
+      valor_unitario: Number(i.valor_unitario),
+      custo_unitario: Number(i.custo_unitario ?? 0),
+    })),
+    totalDespesas
+  );
+  const margem = calcularMargem(Number(doc.valor), composicao.total);
   const faixa = faixaDaMargem(margem);
 
   const titulo = doc.tipo === "recibo" ? "Recibo" : "Orçamento";
@@ -343,7 +358,30 @@ export default async function ReciboPage({
                   </p>
                 )}
 
+                {/* As duas origens somadas sem aviso fariam a margem
+                    afundar sem explicação para quem cadastrou o custo no
+                    catálogo E lançou a compra vinculada ao mesmo trabalho. */}
+                {composicao.podeEstarDuplicado && (
+                  <p className="dica" style={{ color: "var(--pendente)" }}>
+                    Parte do custo vem do catálogo e parte de despesas que você
+                    vinculou. Se for a mesma compra, está contando duas vezes.
+                  </p>
+                )}
+
                 <ul className="mt-3 pt-3 border-t flex flex-col gap-1 text-sm" style={{ borderColor: "var(--borda)" }}>
+                  {composicao.dosItens > 0 && (
+                    <li className="flex justify-between gap-3">
+                      <span className="truncate">
+                        Custo dos itens{" "}
+                        <span className="text-xs" style={{ color: "var(--tinta-suave)" }}>
+                          do catálogo
+                        </span>
+                      </span>
+                      <span className="valor shrink-0" style={{ color: "var(--selo)" }}>
+                        −{formatarMoeda(composicao.dosItens)}
+                      </span>
+                    </li>
+                  )}
                   {listaCustos.map((c) => (
                     <li key={c.id} className="flex justify-between gap-3">
                       <span className="truncate">

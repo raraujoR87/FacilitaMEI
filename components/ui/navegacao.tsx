@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   ChartColumn,
+  BookMarked,
   HandCoins,
   LayoutDashboard,
   LogOut,
@@ -36,6 +37,7 @@ export const ITENS_PRINCIPAIS: Item[] = [
 
 export const ITENS_SECUNDARIOS: Item[] = [
   { href: "/clientes", label: "Clientes", curto: "Clientes", Icone: Users },
+  { href: "/catalogo", label: "Catálogo", curto: "Catálogo", Icone: BookMarked },
   { href: "/nota-fiscal", label: "Nota fiscal", curto: "Notas", Icone: Receipt },
   { href: "/relatorio", label: "Relatório", curto: "Relatório", Icone: ChartColumn },
   { href: "/planos", label: "Plano e cobrança", curto: "Plano", Icone: Sparkles },

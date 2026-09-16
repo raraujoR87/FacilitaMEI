@@ -12,6 +12,7 @@ import { ItensDocumento } from "@/components/ui/itens-documento";
 import { hoje } from "@/lib/formato";
 import { situacaoFiscal } from "@/lib/fiscal";
 import { NATUREZAS_SAIDA, SAIDA, type NaturezaSaida } from "@/lib/lancamentos";
+import type { ItemCatalogo } from "@/lib/catalogo";
 
 export type ClienteOpcao = { id: string; nome: string; documento: string | null };
 export type Categoria = { id: string; nome: string; tipo: string };
@@ -30,6 +31,7 @@ export function Formularios({
   trabalhos,
   naturezaInicial,
   valorDasPadrao,
+  catalogo,
 }: {
   clientes: ClienteOpcao[];
   categoriasDespesa: Categoria[];
@@ -41,6 +43,7 @@ export function Formularios({
    */
   naturezaInicial: NaturezaSaida | null;
   valorDasPadrao: number | null;
+  catalogo: ItemCatalogo[];
 }) {
   const [aba, setAba] = useState<"entrada" | "saida">(
     naturezaInicial ? "saida" : "entrada"
@@ -74,7 +77,7 @@ export function Formularios({
       </div>
 
       {aba === "entrada" ? (
-        <FormularioEntrada clientes={clientes} />
+        <FormularioEntrada clientes={clientes} catalogo={catalogo} />
       ) : (
         <FormularioSaida
           categorias={categoriasDespesa}
@@ -87,7 +90,13 @@ export function Formularios({
   );
 }
 
-function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
+function FormularioEntrada({
+  clientes,
+  catalogo,
+}: {
+  clientes: ClienteOpcao[];
+  catalogo: ItemCatalogo[];
+}) {
   const [estado, acao] = useActionState(criarDocumento, ESTADO_INICIAL);
   const [natureza, setNatureza] = useState<"servico" | "produto">("servico");
   const [recebido, setRecebido] = useState(true);
@@ -248,7 +257,7 @@ function FormularioEntrada({ clientes }: { clientes: ClienteOpcao[] }) {
         </div>
       )}
 
-      <ItensDocumento ativo={detalhado} aoAlternar={setDetalhado} />
+      <ItensDocumento ativo={detalhado} aoAlternar={setDetalhado} catalogo={catalogo} />
 
       <div>
         <label className="rotulo" htmlFor="observacoes">

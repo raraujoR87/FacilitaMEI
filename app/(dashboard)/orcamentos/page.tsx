@@ -10,6 +10,7 @@ import {
   type SituacaoOrcamento,
 } from "@/lib/orcamento";
 import { combina } from "@/lib/busca";
+import type { ItemCatalogo } from "@/lib/catalogo";
 import { Recibo, Vazio } from "@/components/ui/campos";
 import { CampoBusca } from "@/components/ui/campo-busca";
 import { FormularioOrcamento } from "./formulario";
@@ -37,7 +38,8 @@ export default async function OrcamentosPage({
   const termo = (await searchParams).q ?? "";
   const { supabase, user } = await exigirUsuario();
 
-  const [{ data: documentos }, { data: clientes }] = await Promise.all([
+  const [{ data: documentos }, { data: clientes }, { data: catalogo }] =
+    await Promise.all([
     supabase
       .from("documentos_venda")
       .select(
@@ -53,6 +55,11 @@ export default async function OrcamentosPage({
       .eq("user_id", user.id)
       .is("arquivado_em", null)
       .order("nome"),
+    supabase
+      .from("itens_catalogo")
+      .select("id, nome, natureza, preco, custo, unidade, arquivado_em")
+      .eq("user_id", user.id)
+      .is("arquivado_em", null),
   ]);
 
   const hojeISO = hoje();
@@ -183,7 +190,10 @@ export default async function OrcamentosPage({
         </section>
       )}
 
-      <FormularioOrcamento clientes={clientes ?? []} />
+      <FormularioOrcamento
+        clientes={clientes ?? []}
+        catalogo={(catalogo ?? []) as ItemCatalogo[]}
+      />
 
       {todos.length > 0 && (
         <div className="mb-3">
