@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Marca } from "@/components/ui/marca";
+import { controlador } from "@/lib/empresa";
+import { contatoWhatsApp } from "@/lib/planos";
 
 export const metadata: Metadata = {
   title: "Política de Privacidade — AgilizeMei",
@@ -14,7 +16,8 @@ export const metadata: Metadata = {
  * dados de terceiros (os clientes do MEI), que é a parte de maior exposição.
  */
 export default function PrivacidadePage() {
-  const contato = process.env.NEXT_PUBLIC_EMAIL_CONTATO;
+  const { razaoSocial, cnpj, endereco, emailPrivacidade } = controlador();
+  const whatsapp = contatoWhatsApp();
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -40,23 +43,47 @@ export default function PrivacidadePage() {
 
         <Secao titulo="Quem é responsável pelos dados">
           <p>
-            O AgilizeMei é o controlador dos dados tratados nesta plataforma,
-            nos termos da Lei Geral de Proteção de Dados (Lei 13.709/2018).
+            {razaoSocial ?? "O AgilizeMei"}
+            {cnpj ? `, CNPJ ${cnpj},` : ""} é o controlador dos dados tratados
+            nesta plataforma, nos termos da Lei Geral de Proteção de Dados
+            (Lei 13.709/2018).
           </p>
-          {contato ? (
+          {endereco && <p>Endereço: {endereco}.</p>}
+
+          {/* Precisa existir um canal de verdade. A versão anterior anunciava
+              ao leitor que o canal "ainda não foi configurado" — o visitante
+              descobria a falha antes do dono. Sem e-mail definido, o WhatsApp
+              de atendimento é um canal real e assume o lugar. */}
+          {emailPrivacidade ? (
             <p>
-              Para qualquer assunto de privacidade, escreva para{" "}
-              <a href={`mailto:${contato}`} className="underline">
-                {contato}
+              Para exercer seus direitos de titular (acesso, correção,
+              portabilidade, exclusão — art. 18 da LGPD) ou qualquer outro
+              assunto de privacidade, escreva para{" "}
+              <a href={`mailto:${emailPrivacidade}`} className="underline">
+                {emailPrivacidade}
               </a>
-              .
+              . Respondemos em até 15 dias.
             </p>
-          ) : (
+          ) : whatsapp ? (
             <p>
-              O canal de contato para assuntos de privacidade deve constar
-              aqui. Se você está lendo isto, ele ainda não foi configurado.
+              Para exercer seus direitos de titular (acesso, correção,
+              portabilidade, exclusão — art. 18 da LGPD), fale com a gente{" "}
+              <a
+                href={whatsapp}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                pelo WhatsApp
+              </a>
+              . Respondemos em até 15 dias.
             </p>
-          )}
+          ) : null}
+
+          <p>
+            Você também pode apagar tudo sozinho, a qualquer momento, em
+            Configurações → Seus dados — sem precisar pedir para ninguém.
+          </p>
         </Secao>
 
         <Secao titulo="O que coletamos">

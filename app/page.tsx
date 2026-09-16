@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -15,28 +16,20 @@ import {
 import { Marca } from "@/components/ui/marca";
 import { formatarMoeda } from "@/lib/formato";
 import { economiaAnual, PLANOS } from "@/lib/planos";
+import { AvisoContaExcluida } from "./aviso-conta-excluida";
 
-export default async function LandingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ conta?: string }>;
-}) {
-  const { conta } = await searchParams;
-
+export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Cabecalho />
       <main className="flex-1">
-        {/* Sem isso, quem acabou de excluir a conta cai numa página de vendas
-            sem nenhuma confirmação de que o pedido foi atendido. */}
-        {conta === "excluida" && (
-          <div className="max-w-5xl mx-auto w-full px-5 pt-6">
-            <p className="aviso aviso-sucesso" role="status">
-              Sua conta foi excluída e os dados apagados. Obrigado por ter
-              usado o AgilizeMei — se mudar de ideia, é só criar outra.
-            </p>
-          </div>
-        )}
+        {/* Sem isso, quem acabou de excluir a conta cai numa página de
+            vendas sem confirmação de que o pedido foi atendido. Fica num
+            componente de cliente sob Suspense porque ler `searchParams`
+            aqui tornava a landing inteira dinâmica. */}
+        <Suspense fallback={null}>
+          <AvisoContaExcluida />
+        </Suspense>
         <Hero />
         <Dor />
         <ComoFunciona />
@@ -211,7 +204,7 @@ function ComoFunciona() {
       Icone: Camera,
       titulo: "Fotografe o que você gastou",
       texto:
-        "Cupom do fornecedor, boleto, nota de material. A leitura por IA tira valor, data e fornecedor sozinha — o que você venderia tempo digitando.",
+        "Cupom do fornecedor, boleto, nota de material. A leitura por IA tira valor, data e fornecedor sozinha — o que você perderia tempo digitando.",
     },
     {
       Icone: Sparkles,

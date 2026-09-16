@@ -37,7 +37,15 @@ export default function CadastroPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password: senha,
-      options: { data: { nome_negocio: nomeNegocio } },
+      options: {
+        data: {
+          nome_negocio: nomeNegocio,
+          // Vira `aceitou_termos_em` no gatilho que cria o perfil. Sem
+          // sessão após o cadastro, um update do cliente não teria
+          // permissão para gravar na própria linha.
+          aceitou_termos: "sim",
+        },
+      },
     });
 
     setCarregando(false);
@@ -116,6 +124,21 @@ export default function CadastroPage() {
             <RequisitosSenha senha={senha} />
           </div>
         </div>
+
+        {/* Aceite explícito e registrado. A LGPD pede consentimento
+            demonstrável, e o cadastro não pedia nada — a coluna que guarda
+            o carimbo existia desde o começo e nunca foi preenchida. */}
+        <p className="text-xs" style={{ color: "var(--tinta-suave)" }}>
+          Ao criar a conta você concorda com os{" "}
+          <Link href="/termos" className="underline">
+            Termos de Uso
+          </Link>{" "}
+          e com a{" "}
+          <Link href="/privacidade" className="underline">
+            Política de Privacidade
+          </Link>
+          .
+        </p>
 
         {erro && (
           <p className="aviso aviso-erro" role="alert">
